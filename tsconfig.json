@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "lib": ["dom", "ES2021","esnext.asynciterable"],
+    "types": ["node"],
+    "target": "ES2021",
+    "module": "commonjs", 
+    "moduleResolution": "node",
+    "outDir": "./lib",
+    "noImplicitAny": false,
+    "declaration": true,
+    "strict": true, /* enable strict type checking option */
+    "emitDecoratorMetadata": true, /* Send design-type metadata for decorator declaration to source */
+    "experimentalDecorators": true, /* enabled for ES decorators */
+    "sourceMap": true, /* Use Source Map */
+    "allowSyntheticDefaultImports": true, /* Allow default imports from modules without default export */
+    "esModuleInterop": true, /*'require' and'import' compatible */
+    "skipLibCheck": true, /* Omit type checking of all declaration files (*.d.ts) */
+    "resolveJsonModule": true, /* Include modules imported with .json extension */
+    "baseUrl": "src",
+  },
+  "include": [
+    "src/**/*"  ],
+  "exclude": [
+    "node_modules",
+    "**/*.spec.ts",
+    "**/*.test.ts",
+  ]
+}
