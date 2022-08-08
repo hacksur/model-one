@@ -161,7 +161,7 @@ class Model {
     const { schema } = new this()
     const { results, success} = await env.prepare(`SELECT * FROM ${schema.table_name} WHERE ${column}='${value}';`).all()
     if (!success) return;
-    if (Boolean(results)) {
+    if (Boolean(results[0])) {
       const { deleted_at, created_at, updated_at, ...result } = results[0];
       return result
     } else {

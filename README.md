@@ -223,7 +223,8 @@ export class User extends Model implements UserI {
   }
 
   static async findByFirstName(first_name: string, binding: any) {
-    const user = await this.findBy('email', email, binding)
+    // this.findBy(column, value, binding)
+    const user = await this.findBy('first_name', first_name, binding)
     return Boolean(user) ? user : NotFoundError;
   }
 }
