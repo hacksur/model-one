@@ -126,8 +126,10 @@ class Model {
     ).all()
 
     if (!success) return;
-    const { deleted_at, created_at, updated_at, ...result } = results[0];
-    return result
+    if (Boolean(results)) {
+      const { deleted_at, created_at, updated_at, ...result } = results[0];
+      return result
+    }
   }
 
   static async delete(id: string, env: any) {
@@ -146,10 +148,12 @@ class Model {
     const { schema } = new this()
     const { results, success} = await env.prepare(`SELECT * FROM ${schema.table_name};`).all()
     if(!success) return;
-    return results.map((result: any) => {
-      const { deleted_at, created_at, updated_at, ...data } = result;
-      return data;
-    })
+    if (Boolean(results)) {
+      return results.map((result: any) => {
+        const { deleted_at, created_at, updated_at, ...data } = result;
+        return data;
+      })
+    }
   }
 
   // TODO: detect if the column exists
@@ -157,20 +161,23 @@ class Model {
     const { schema } = new this()
     const { results, success} = await env.prepare(`SELECT * FROM ${schema.table_name} WHERE ${column}='${value}';`).all()
     if (!success) return;
-    const { deleted_at, created_at, updated_at, ...result } = results[0];
-    return result
+    if (Boolean(results)) {
+      const { deleted_at, created_at, updated_at, ...result } = results[0];
+      return result
+    } else {
+      return NotFoundError();
+    }
   }
 
-  static async findBy(column: string, value: string, env: any, complete?: Boolean) {
+  static async findBy(column: string, value: string, env: any, complete?: Boolean ) {
     const { schema } = new this()
     const { results, success} = await env.prepare(`SELECT * FROM ${schema.table_name} WHERE ${column}='${value}';`).all()
-    if (success) {
-      if (complete) {
-        return results[0]
-      } else {
-        const { deleted_at, created_at, updated_at, ...data } = results[0];
-        return data; 
-      }
+    if (!success) return;
+    if (Boolean(results)) {
+      return results.map((result: any) => {
+        const { deleted_at, created_at, updated_at, ...data } = result;
+        return complete ? result : data;
+      })
     } else {
       return NotFoundError();
     }
@@ -179,18 +186,15 @@ class Model {
   static async findById(id: string, env: any, complete?: Boolean) {
     const { schema } = new this()
     const { results, success} = await env.prepare(`SELECT * FROM ${schema.table_name} WHERE id='${id}';`).all()
-    if (success) {
-      if (complete) {
-        return results[0]
-      } else {
-        const { deleted_at, created_at, updated_at, ...data } = results[0];
-        return data; 
-      }
+    if (!success) return;
+    if (Boolean(results)) {
+      const { deleted_at, created_at, updated_at, ...data } = results[0];
+      return complete ? results[0] : data;
     } else {
       return NotFoundError();
     }
   }
 }
 
-export { Model, Schema, Form }
+export { Model, Schema, Form, NotFoundError }
 export type { SchemaConfigI }

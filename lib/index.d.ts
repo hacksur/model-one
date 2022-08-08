@@ -1,4 +1,5 @@
 import Joi from 'joi';
+declare const NotFoundError: () => null;
 interface SchemaConfigI {
     table_name: string;
     columns: string[];
@@ -37,5 +38,5 @@ declare class Model {
     static findBy(column: string, value: string, env: any, complete?: Boolean): Promise<any>;
     static findById(id: string, env: any, complete?: Boolean): Promise<any>;
 }
-export { Model, Schema, Form };
+export { Model, Schema, Form, NotFoundError };
 export type { SchemaConfigI };
