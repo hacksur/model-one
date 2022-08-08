@@ -80,7 +80,7 @@ export interface UserI extends Model {
 
 ```js
 // ./models/User.ts
-import { UserI, UserDataI } from '../interfaces/models'
+import { UserI, UserDataI } from '../interfaces'
 
 export class User extends Model implements UserI {
   data: UserDataI
@@ -99,7 +99,7 @@ export class User extends Model implements UserI {
 // ./models/User.ts
 import { Model, Schema } from 'model-one'
 import type { SchemaConfigI } from 'model-one';
-import { UserI, UserDataI } from '../interfaces/models'
+import { UserI, UserDataI } from '../interfaces'
 
 const userSchema: SchemaConfigI = new Schema({
   table_name: 'users',
@@ -127,7 +127,7 @@ export class User extends Model implements UserI {
 ```js
 // ./forms/UserForm.ts
 import { Form } from 'model-one'
-import { UserI } from '../interfaces/models'
+import { UserI } from '../interfaces'
 import Joi from 'joi'
 
 const schema = Joi.object({
@@ -167,7 +167,7 @@ await User.findBy(column, value, binding)
 
 ### Write
 
-For the actions that require to insert data we are need to import the UserForm and we are going to create a User and insert it in the UserForm and then we call the methods
+For the actions that require to insert data we need to import the UserForm and we are going to create a User and insert it in the UserForm and then we can call the methods 
 
 ```js
 // ./controllers/UserController.ts
@@ -203,7 +203,7 @@ Extend User methods.
 // ./models/User.ts
 import { Model, Schema, NotFoundError } from 'model-one'
 import type { SchemaConfigI } from 'model-one';
-import { UserI, UserDataI } from '../interfaces/models'
+import { UserI, UserDataI } from '../interfaces'
 
 const userSchema: SchemaConfigI = new Schema({
   table_name: 'users',
@@ -224,8 +224,12 @@ export class User extends Model implements UserI {
 
   static async findByFirstName(first_name: string, binding: any) {
     // this.findBy(column, value, binding)
-    const user = await this.findBy('first_name', first_name, binding)
-    return Boolean(user) ? user : NotFoundError;
+    return await this.findBy('first_name', first_name, binding)
+  }
+
+  static async rawAll(first_name: string, binding: any) {
+    const { results, success} = await binding.prepare(`SELECT * FROM ${userSchema.table_name};`).all()
+    return Boolean(success) ? results : NotFoundError
   }
 }
 
