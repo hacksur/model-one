@@ -1,14 +1,10 @@
-# model-one
+# Model 1
 
-[![build status](https://img.shields.io/travis/com/hacksur/model-one.svg)](https://travis-ci.com/hacksur/model-one)
-[![code coverage](https://img.shields.io/codecov/c/github/hacksur/model-one.svg)](https://codecov.io/gh/hacksur/model-one)
 [![code style](https://img.shields.io/badge/code_style-XO-5ed9c7.svg)](https://github.com/sindresorhus/xo)
 [![styled with prettier](https://img.shields.io/badge/styled_with-prettier-ff69b4.svg)](https://github.com/prettier/prettier)
 [![made with lass](https://img.shields.io/badge/made_with-lass-95CC28.svg)](https://lass.js.org)
 [![license](https://img.shields.io/github/license/hacksur/model-one.svg)](LICENSE)
 [![npm downloads](https://img.shields.io/npm/dt/model-one.svg)](https://npm.im/model-one)
-
-# Model 1
 
 Set of utility classes for Cloudflare Workers D1 with validations by Joi inspired by [reform](https://github.com/trailblazer/reform).
 
@@ -16,7 +12,7 @@ Set of utility classes for Cloudflare Workers D1 with validations by Joi inspire
 
 - Basic CRUD Model.
 - UUID by default.
-- auto update fields created_at and updated_at.
+- Timestamps for created_at and updated_at.
 - Validations by Joi.
 
 ## Table of Contents
