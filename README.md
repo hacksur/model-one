@@ -8,6 +8,7 @@
 
 Set of utility classes for Cloudflare Workers D1 with validations by Joi inspired by [reform](https://github.com/trailblazer/reform).
 
+
 ## Features
 
 - Basic CRUD Model.
@@ -40,9 +41,34 @@ yarn add model-one joi
 
 In the following example we are going to define an user with the following fields first_name and last_name.
 
-First we need to import the Model and Schema from 'model-one' and the type for SchemaConfigI too.
+1. Create a new database.
 
-1. We create a new Schema, define table name and fields 
+Create a local file schema.sql
+
+```sql
+  DROP TABLE IF EXISTS users;
+
+  CREATE TABLE users (
+    id text PRIMARY KEY,
+    first_name text,
+    last_name text,
+    deleted_at datetime,
+    created_at datetime,
+    updated_at datetime
+  );
+```
+Creates a new D1 database and provides the binding and UUID that you will put in your wrangler.toml file. 
+```sh
+wrangler d1 create example-db
+```
+
+Create the tables from schema.sql
+
+```sh
+wrangler d1 execute example-db --file ./schema.sql
+```
+
+2. We need to import the Model and Schema from 'model-one' and the type SchemaConfigI. Then create a new Schema, define table name and fields 
 
 
 ```js
@@ -61,7 +87,7 @@ const userSchema: SchemaConfigI = new Schema({
 
 ```
 
-2. Then we are going to define the interfaces for our User model.
+3. Then we are going to define the interfaces for our User model.
 
 ```js
 // ./interfaces/index.ts
@@ -76,7 +102,7 @@ export interface UserI extends Model {
 }
 ```
 
-3. Now we are going import the types and extend the User
+4. Now we are going import the types and extend the User
 
 ```js
 // ./models/User.ts
@@ -93,7 +119,7 @@ export class User extends Model implements UserI {
 
 ```
 
-4. Final result:
+5. Final result of the User model
 
 ```js
 // ./models/User.ts
@@ -122,7 +148,7 @@ export class User extends Model implements UserI {
 ```
 
 
-5. After creating the User we are going to create the form that handles the validations. And with the help of Joi we are going to define the fields.
+6. After creating the User we are going to create the form that handles the validations. And with the help of Joi we are going to define the fields.
 
 ```js
 // ./forms/UserForm.ts
