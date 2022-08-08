@@ -59,13 +59,13 @@ Create a local file schema.sql
 ```
 Creates a new D1 database and provides the binding and UUID that you will put in your wrangler.toml file. 
 ```sh
-wrangler d1 create example-db
+npx wrangler d1 create example-db
 ```
 
 Create the tables from schema.sql
 
 ```sh
-wrangler d1 execute example-db --file ./schema.sql
+npx wrangler d1 execute example-db --file ./schema.sql
 ```
 
 2. We need to import the Model and Schema from 'model-one' and the type SchemaConfigI. Then create a new Schema, define table name and fields 
