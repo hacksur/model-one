@@ -173,9 +173,24 @@ export class UserForm extends Form {
 
 ## Methods
 
+### Create
+
+To insert data we need to import the UserForm and we are going start a new User and insert it inside the UserForm, then we can call the method create.
+
+```js
+// ./controllers/UserController.ts
+import { UserForm } from '../form/UserForm';
+import { User } from '../models/User';
+
+const userForm = new UserForm(new User({ id, first_name, last_name }))
+
+await User.create(userForm, binding)
+
+```
+
 ### Read
 
-Now our User model will have the following methods to query to D1:
+By importing the User model will have the following methods to query to D1:
 
 ```js
 // ./controllers/UserController.ts
@@ -191,31 +206,16 @@ await User.findBy(column, value, binding)
 
 ```
 
-For the actions that require to insert data we need to import the UserForm and we are going to create a User and insert it in the UserForm and then we can call the methods 
-
-### Create
-
-```js
-// ./controllers/UserController.ts
-import { UserForm } from '../form/UserForm';
-import { User } from '../models/User';
-
-const userForm = new UserForm(new User({ id, first_name, last_name }))
-
-await User.create(userForm, binding)
-
-```
-
 ### Update
 
+Include the ID and the fields you want to update inside the data object.
+
 ```js
 // ./controllers/UserController.ts
-import { UserForm } from '../form/UserForm';
 import { User } from '../models/User';
 
-const userForm = new UserForm(new User({ id, first_name}))
-
-await User.update(userForm, binding)
+// User.update(data, binding)
+await User.update({ id, first_name: 'John' }, binding)
 
 ```
 
