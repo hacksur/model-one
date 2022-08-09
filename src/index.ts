@@ -121,7 +121,7 @@ class Model {
     const { results, success} = await env.prepare(
       `UPDATE ${schema.table_name}
       SET ${attributes}
-      WHERE id = '${id}'
+      WHERE id='${id}'
       RETURNING *;`
     ).all()
 
@@ -135,9 +135,9 @@ class Model {
   static async delete(id: string, env: any) {
     const { schema } = new this()
     if (!Boolean(id)) return { message: 'ID is missing.'};
-    const { success} = await env.prepare(
-      `DELETE ${schema.table_name}
-      WHERE id = '${id}';`
+    const { success, ...more} = await env.prepare(
+      `DELETE FROM ${schema.table_name}
+      WHERE id='${id}';`
     ).all()
     return success ?
       { message: `The ID ${id} from table "${schema.table_name} has been successfully deleted.` }
