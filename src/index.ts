@@ -113,7 +113,7 @@ class Model {
     }
   }
 
-  static async update({ data }: any, env: any) {
+  static async update(data: any, env: any) {
     const { schema } = new this()
     const { id } = data;
     if (!Boolean(id)) return { message: 'No ID present for update.'};
@@ -124,7 +124,6 @@ class Model {
       WHERE id='${id}'
       RETURNING *;`
     ).all()
-
     if (!success) return;
     if (Boolean(results)) {
       const { deleted_at, created_at, updated_at, ...result } = results[0];
@@ -135,7 +134,7 @@ class Model {
   static async delete(id: string, env: any) {
     const { schema } = new this()
     if (!Boolean(id)) return { message: 'ID is missing.'};
-    const { success, ...more} = await env.prepare(
+    const { success } = await env.prepare(
       `DELETE FROM ${schema.table_name}
       WHERE id='${id}';`
     ).all()
@@ -171,7 +170,7 @@ class Model {
 
   static async findBy(column: string, value: string, env: any, complete?: Boolean ) {
     const { schema } = new this()
-    const { results, success} = await env.prepare(`SELECT * FROM ${schema.table_name} WHERE ${column}='${value}';`).all()
+    const { results, success } = await env.prepare(`SELECT * FROM ${schema.table_name} WHERE ${column}='${value}';`).all()
     if (!success) return;
     if (Boolean(results)) {
       return results.map((result: any) => {
