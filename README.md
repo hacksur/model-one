@@ -15,6 +15,7 @@ Set of utility classes for Cloudflare Workers D1 with validations by Joi inspire
 - UUID by default.
 - Timestamps for created_at and updated_at.
 - Validations by Joi.
+- Raw SQL queries.
 
 ## Table of Contents
 
@@ -182,7 +183,7 @@ To insert data we need to import the UserForm and we are going start a new User 
 import { UserForm } from '../form/UserForm';
 import { User } from '../models/User';
 
-const userForm = new UserForm(new User({ id, first_name, last_name }))
+const userForm = new UserForm(new User({ first_name, last_name }))
 
 await User.create(userForm, binding)
 
@@ -264,21 +265,27 @@ export class User extends Model implements UserI {
     return await this.findBy('first_name', first_name, binding)
   }
 
-  static async rawAll(first_name: string, binding: any) {
-    const { results, success} = await binding.prepare(`SELECT * FROM ${userSchema.table_name};`).all()
+  static async rawAll(binding: any) {
+    const { results, success } = await binding.prepare(`SELECT * FROM ${userSchema.table_name};`).all()
     return Boolean(success) ? results : NotFoundError
   }
 }
 
 ```
 
+## To do:
+
+- [ ] Soft and hard delete.
+- [ ] Tests.
+- [ ] Unique values.
+- [ ] Associations: belongs_to, has_one, has_many.
+- [ ] Complex Forms for multiple Models.
+
 ## Contributors
 Julian Clatro
 
 ## License
 MIT
-
-##
 
 [npm]: https://www.npmjs.com/
 
