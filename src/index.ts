@@ -88,27 +88,17 @@ class Model {
   
   private static serializeData(data: any): any {
     const { schema } = new this()
-    let output: any;
+    let output: any = {};
     schema.columns.map((column: Column) => {
       // console.log('col', column)
-      if (column.type === 'jsonb') {
-        // console.log(`${column.name}`,data[column.name])
-        output = { ...data, [column.name]: JSON.parse(data[column.name]) }
+      if (column.type === 'jsonb' && typeof data[column.name] === 'string') {
+        console.log(`${column.name}`, data[column.name], typeof data[column.name])   
+        const parseJson = JSON.parse(data[column.name])
+        console.log('parseJson', typeof parseJson, parseJson)
+        output = { ...output, [column.name]: JSON.parse(data[column.name]) }
       }
     })
-    return !!output ? output : data
-
-    // console.log('DATA', data)
-
-      // Object.keys(data).map((key) => {
-      //   if (typeof data[key] === 'object') {
-      //     keys.push(key); values.push(JSON.stringify(data[key]))
-      //   } else if (typeof data[key] === 'number')  {
-      //     keys.push(key); values.push(data[key].toString())
-      //   } else if (typeof data[key] === 'string')  {
-      //     keys.push(key); values.push(data[key])
-      //   }
-      // });
+    return { ...data, ...output }
   }
 
 
@@ -195,14 +185,14 @@ class Model {
     }
   }
 
-  static async findBy(column: string, value: string, env: any, complete?: Boolean ) {
+  static async findBy(column: string, value: string, env: any ) {
     const { schema } = new this()
     const { results, success } = await env.prepare(`SELECT * FROM ${schema.table_name} WHERE ${column}='${value}';`).all()
     if (!success) return;
     if (Boolean(results)) {
       return results.map((result: any) => {
         const { deleted_at, created_at, updated_at, ...data } = result;
-        return complete ? result : this.serializeData(data);
+        return this.serializeData(data);
       })
     } else {
       return NotFoundError();
