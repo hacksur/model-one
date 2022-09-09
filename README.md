@@ -8,6 +8,7 @@
 
 Set of utility classes for Cloudflare Workers D1 with validations by Joi inspired by [reform](https://github.com/trailblazer/reform).
 
+Note: This package is still considered experimental. Breaking changes should be expected.
 
 ## Features
 
@@ -80,9 +81,9 @@ import type { SchemaConfigI } from 'model-one';
 const userSchema: SchemaConfigI = new Schema({
   table_name: 'users',
   columns: [
-    'id',
-    'first_name',
-    'last_name',
+    { name: 'id', type: 'string' },
+    { name: 'first_name', type: 'string' },
+    { name: 'last_name', type: 'string' }
   ],
 })
 
@@ -131,9 +132,9 @@ import { UserI, UserDataI } from '../interfaces'
 const userSchema: SchemaConfigI = new Schema({
   table_name: 'users',
   columns: [
-    'id',
-    'first_name',
-    'last_name',
+    { name: 'id', type: 'string' },
+    { name: 'first_name', type: 'string' },
+    { name: 'last_name', type: 'string' }
   ],
 })
 
@@ -246,9 +247,9 @@ import { UserI, UserDataI } from '../interfaces'
 const userSchema: SchemaConfigI = new Schema({
   table_name: 'users',
   columns: [
-    'id',
-    'first_name',
-    'last_name',
+    { name: 'id', type: 'string' },
+    { name: 'first_name', type: 'string' },
+    { name: 'last_name', type: 'string' }
   ],
 })
 
@@ -275,6 +276,7 @@ export class User extends Model implements UserI {
 
 ## To do:
 
+- [x] Support JSONB.
 - [ ] Soft and hard delete.
 - [ ] Tests.
 - [ ] Unique values.

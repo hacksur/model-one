@@ -3,11 +3,15 @@ import Joi from 'joi'
 const NotFoundError = () => {
   return null
 }
+type Column = {
+  name: string,
+  type: string
+}
+type Columns = Column[]
 
 interface SchemaConfigI {
   table_name: string;
-  columns: string[];
-  select: string;
+  columns: Columns;
   uniques?: string[];
 }
 
@@ -36,14 +40,12 @@ class Form {
 
 class Schema implements SchemaConfigI {
   table_name: string
-  columns: string[]
-  select: string
+  columns: Columns
   uniques: string[] | undefined
 
-  constructor(props: { table_name: string; columns: string[], uniques?: string[] }) {
+  constructor(props: { table_name: string; columns: Columns, uniques?: string[] }) {
     this.table_name = props.table_name
     this.columns = props.columns
-    this.select = props.columns.join(', ')
     this.uniques = props.uniques
   }
 }
@@ -83,11 +85,36 @@ class Model {
       return { attributes: "" + attributes.join(", ")};
     }
   }
+  
+  private static serializeData(data: any): any {
+    const { schema } = new this()
+    let output: any;
+    schema.columns.map((column: Column) => {
+      // console.log('col', column)
+      if (column.type === 'jsonb') {
+        // console.log(`${column.name}`,data[column.name])
+        output = { ...data, [column.name]: JSON.parse(data[column.name]) }
+      }
+    })
+    return !!output ? output : data
+
+    // console.log('DATA', data)
+
+      // Object.keys(data).map((key) => {
+      //   if (typeof data[key] === 'object') {
+      //     keys.push(key); values.push(JSON.stringify(data[key]))
+      //   } else if (typeof data[key] === 'number')  {
+      //     keys.push(key); values.push(data[key].toString())
+      //   } else if (typeof data[key] === 'string')  {
+      //     keys.push(key); values.push(data[key])
+      //   }
+      // });
+  }
 
 
   static async create({ data }: any, env: any) {
     let { schema } = new this();
-    // const idExists = await this.findById(id, env, ctx)
+    // const idExists = await this.findById(id, env)
     const idExists = false;
 
     // if (schema.uniques) {
@@ -156,13 +183,13 @@ class Model {
   }
 
   // TODO: detect if the column exists
-  static async findOne(column: string, value: string, env: any) {
+  static async findOne(column: string, value: string, env: any, complete?: Boolean) {
     const { schema } = new this()
     const { results, success} = await env.prepare(`SELECT * FROM ${schema.table_name} WHERE ${column}='${value}';`).all()
     if (!success) return;
     if (Boolean(results[0])) {
-      const { deleted_at, created_at, updated_at, ...result } = results[0];
-      return result
+      const { deleted_at, created_at, updated_at, ...data } = results[0];
+      return complete ? results[0] : this.serializeData(data);
     } else {
       return NotFoundError();
     }
@@ -175,7 +202,7 @@ class Model {
     if (Boolean(results)) {
       return results.map((result: any) => {
         const { deleted_at, created_at, updated_at, ...data } = result;
-        return complete ? result : data;
+        return complete ? result : this.serializeData(data);
       })
     } else {
       return NotFoundError();
@@ -188,7 +215,7 @@ class Model {
     if (!success) return;
     if (Boolean(results[0])) {
       const { deleted_at, created_at, updated_at, ...data } = results[0];
-      return complete ? results[0] : data;
+      return complete ? results[0] : this.serializeData(data);
     } else {
       return NotFoundError();
     }
