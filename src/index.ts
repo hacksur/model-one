@@ -90,15 +90,12 @@ class Model {
     const { schema } = new this()
     let output: any = {};
     schema.columns.map((column: Column) => {
-      // console.log('col', column)
       if (column.type === 'jsonb' && typeof data[column.name] === 'string') {
-        console.log(`${column.name}`, data[column.name], typeof data[column.name])   
-        const parseJson = JSON.parse(data[column.name])
-        console.log('parseJson', typeof parseJson, parseJson)
         output = { ...output, [column.name]: JSON.parse(data[column.name]) }
       }
     })
-    return { ...data, ...output }
+    const result = { ...data, ...output }
+    return result
   }
 
 
