@@ -64,7 +64,6 @@ class Model {
     if (!Boolean(id)) {
       const keys: string[] = ['id'];
       const values: string[] = [`${crypto.randomUUID()}`];
-
       Object.keys(data).map((key) => {
         if (typeof data[key] === 'object') {
           keys.push(key); values.push(JSON.stringify(data[key]))
@@ -182,14 +181,14 @@ class Model {
     }
   }
 
-  static async findBy(column: string, value: string, env: any ) {
+  static async findBy(column: string, value: string, env: any, complete?: Boolean ) {
     const { schema } = new this()
     const { results, success } = await env.prepare(`SELECT * FROM ${schema.table_name} WHERE ${column}='${value}';`).all()
     if (!success) return;
     if (Boolean(results)) {
       return results.map((result: any) => {
         const { deleted_at, created_at, updated_at, ...data } = result;
-        return this.serializeData(data);
+        return complete ? result : this.serializeData(data);
       })
     } else {
       return NotFoundError();
