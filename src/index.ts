@@ -120,7 +120,9 @@ class Model {
           VALUES(${values}, datetime('now'), datetime('now')) RETURNING *;`
       ).all()
       if (!Boolean(success)) return;
-      return results[0]
+      // return results[0]
+      const { deleted_at, created_at, updated_at, ...output } = results[0];
+      return this.serializeData(output);
     } else {
       return NotFoundError() 
     }

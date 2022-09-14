@@ -39,7 +39,7 @@ declare class Model {
     }>;
     static all(env: any): Promise<any>;
     static findOne(column: string, value: string, env: any, complete?: Boolean): Promise<any>;
-    static findBy(column: string, value: string, env: any): Promise<any>;
+    static findBy(column: string, value: string, env: any, complete?: Boolean): Promise<any>;
     static findById(id: string, env: any, complete?: Boolean): Promise<any>;
 }
 export { Model, Schema, Form, NotFoundError };

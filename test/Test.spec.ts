@@ -1,11 +1,11 @@
-const test = require('ava');
-const { Model } = require('../lib');
+import test from "ava";
+import { Model } from '../lib'
 
-test.beforeEach((t) => {
+test.beforeEach((t: any) => {
   const model = new Model({});
   Object.assign(t.context, { model });
 });
 
-test('returns itself', (t) => {
+test('returns itself', (t: any) => {
   t.true(t.context.model instanceof Model);
 });

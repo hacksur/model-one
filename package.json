@@ -39,6 +39,7 @@
     "concurrently": "^7.3.0",
     "cross-env": "latest",
     "eslint": "latest",
+    "browser-env": "^3.3.0",
     "eslint-config-prettier": "latest",
     "eslint-config-xo": "latest",
     "eslint-plugin-ava": "latest",
@@ -49,6 +50,7 @@
     "eslint-plugin-promise": "latest",
     "eslint-plugin-unicorn": "latest",
     "fixpack": "latest",
+    "miniflare": "d1",
     "husky": "latest",
     "joi": "^17.6.0",
     "lint-staged": "latest",
@@ -66,5 +68,16 @@
     "url": "https://github.com/hacksur/model-one/issues",
     "email": "jclatro@yahoo.com"
   },
-  "homepage": "https://github.com/hacksur/model-one"
+  "homepage": "https://github.com/hacksur/model-one",
+  "ava": {
+    "extensions": {
+      "ts": "module"
+    },
+    "nodeArguments": [
+      "--loader=ts-node/esm"
+    ],
+    "require": [
+      "./test/_setup-browser-env.ts"
+    ]
+  }
 }
