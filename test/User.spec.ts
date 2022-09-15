@@ -67,7 +67,6 @@ test('Create an user with jsonb', async (t) => {
   const userForm = new UserForm(new User({ name: 'John', languages: ['es', 'en'] }))
 
   const user = await User.create(userForm, binding)
-  console.log('typeof',typeof user.languages)
   t.deepEqual(user.name, 'John')
 });
 
@@ -76,10 +75,7 @@ test('Create and update user with jsonb', async (t) => {
   const userForm = new UserForm(new User({ name: 'John', languages: ['es', 'en'] }))
 
   const user = await User.create(userForm, binding)
-  console.log("user", user)
 
-  const updatedUser = await User.update({ id: user.id, name: 'Caros'}, binding)
-  console.log("updatedUser", updatedUser)
-
-  t.deepEqual(updatedUser.name, 'Caros')
+  const updatedUser = await User.update({ id: user.id, name: 'Caro', languages: [ 'es', 'en', 'fr' ]}, binding)
+  t.deepEqual(typeof updatedUser.languages, 'object')
 });

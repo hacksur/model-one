@@ -61,12 +61,10 @@ class Model {
 
   private static deserializeData(data: any): any {
     const { id }: { id: string | null } = data;
-    console.log('deserializeData', data)
     if (!Boolean(id)) {
       const keys: string[] = ['id'];
       const values: string[] = [`${crypto.randomUUID()}`];
       Object.keys(data).map((key) => {
-        console.log('data[key]', data[key])
         if (typeof data[key] === 'object') {
           keys.push(key); values.push(JSON.stringify(data[key]))
         } else if (typeof data[key] === 'number')  {
@@ -81,10 +79,13 @@ class Model {
       const attributes: string[] = [];
       Object.keys(data).map((key) => {
         if (key === 'id') return;
-        attributes.push(key + " = '" + data[key] + "'");
+        if (typeof data[key] === 'object') {
+          attributes.push(key + " = '" + JSON.stringify(data[key]) + "'");
+        } else if (typeof data[key] === 'string')  {
+          attributes.push(key + " = '" + data[key] + "'");
+        }
       });
       const updated = { attributes: "" + attributes.join(", ")}
-      console.log('updated', updated)
       return updated;
     }
   }
@@ -104,26 +105,12 @@ class Model {
 
   static async create({ data }: any, env: any) {
     let { schema } = new this();
-    // const idExists = await this.findById(id, env)
-    const idExists = false;
-
-    // if (schema.uniques) {
-    //   const hasDuplicates = schema.uniques.map(async (value: string) => {
-    //     return await this.findOne(value, data[value], env, ctx)
-    //   })
-    //   const promises = await Promise.all(hasDuplicates)
-    //   if(!promises.some(e => !e)) {
-    //     return null
-    //   }
-    // }
-
-    if (!idExists) {
-      const { keys, values } = this.deserializeData(data)
-      const { results, success} = await env.prepare(
-        `INSERT INTO ${schema.table_name} (${keys}, created_at, updated_at)
-          VALUES(${values}, datetime('now'), datetime('now')) RETURNING *;`
-      ).all()
-      if (!Boolean(success)) return;
+    const { keys, values } = this.deserializeData(data)
+    const { results, success} = await env.prepare(
+      `INSERT INTO ${schema.table_name} (${keys}, created_at, updated_at)
+        VALUES(${values}, datetime('now'), datetime('now')) RETURNING *;`
+    ).all()
+    if (success) {
       const { deleted_at, created_at, updated_at, ...output } = results[0];
       return this.serializeData(output);
     } else {
