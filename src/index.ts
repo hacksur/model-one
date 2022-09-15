@@ -61,10 +61,12 @@ class Model {
 
   private static deserializeData(data: any): any {
     const { id }: { id: string | null } = data;
+    console.log('deserializeData', data)
     if (!Boolean(id)) {
       const keys: string[] = ['id'];
       const values: string[] = [`${crypto.randomUUID()}`];
       Object.keys(data).map((key) => {
+        console.log('data[key]', data[key])
         if (typeof data[key] === 'object') {
           keys.push(key); values.push(JSON.stringify(data[key]))
         } else if (typeof data[key] === 'number')  {
@@ -81,7 +83,9 @@ class Model {
         if (key === 'id') return;
         attributes.push(key + " = '" + data[key] + "'");
       });
-      return { attributes: "" + attributes.join(", ")};
+      const updated = { attributes: "" + attributes.join(", ")}
+      console.log('updated', updated)
+      return updated;
     }
   }
   
@@ -120,7 +124,6 @@ class Model {
           VALUES(${values}, datetime('now'), datetime('now')) RETURNING *;`
       ).all()
       if (!Boolean(success)) return;
-      // return results[0]
       const { deleted_at, created_at, updated_at, ...output } = results[0];
       return this.serializeData(output);
     } else {
@@ -142,7 +145,7 @@ class Model {
     if (!success) return;
     if (Boolean(results)) {
       const { deleted_at, created_at, updated_at, ...result } = results[0];
-      return result
+      return this.serializeData(result);
     }
   }
 
