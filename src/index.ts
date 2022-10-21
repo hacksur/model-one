@@ -5,7 +5,7 @@ const NotFoundError = () => {
 }
 type Column = {
   name: string,
-  type: string
+  type: 'string' | 'jsonb' | 'boolean';
 }
 type Columns = Column[]
 
