@@ -35,11 +35,11 @@
     "@commitlint/cli": "latest",
     "@commitlint/config-conventional": "latest",
     "ava": "^4.3.1",
+    "browser-env": "^3.3.0",
     "codecov": "latest",
     "concurrently": "^7.3.0",
     "cross-env": "latest",
     "eslint": "latest",
-    "browser-env": "^3.3.0",
     "eslint-config-prettier": "latest",
     "eslint-config-xo": "latest",
     "eslint-plugin-ava": "latest",
@@ -50,16 +50,19 @@
     "eslint-plugin-promise": "latest",
     "eslint-plugin-unicorn": "latest",
     "fixpack": "latest",
-    "miniflare": "d1",
     "husky": "latest",
-    "joi": "^17.6.0",
+    "joi": "latest",
     "lint-staged": "latest",
+    "@miniflare/d1": "latest",
+    "@miniflare/shared": "latest",
+    "better-sqlite3": "latest",
     "nyc": "latest",
     "prettier": "latest",
     "remark-cli": "^9.0.0",
     "remark-preset-github": "latest",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^4.7.4"
+    "typescript": "^4.7.4",
+    "xo": "^0.53.1"
   },
   "engines": {
     "node": ">= 10"
@@ -79,5 +82,8 @@
     "require": [
       "./test/_setup-browser-env.ts"
     ]
+  },
+  "volta": {
+    "node": "16.15.1"
   }
 }

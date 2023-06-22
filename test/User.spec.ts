@@ -1,7 +1,7 @@
 import test from "ava";
 import Joi from 'joi'
-import { BetaDatabase } from "@miniflare/d1";
-import { MemoryStorage } from "@miniflare/storage-memory";
+import { createSQLiteDB } from '@miniflare/shared';
+import { D1Database, D1DatabaseAPI } from '@miniflare/d1';
 import { Model, Schema, type SchemaConfigI, Form } from '../lib'
 import { schema } from './_database';
 
@@ -47,10 +47,10 @@ class User extends Model implements UserI {
 
 
 test.beforeEach(async (t) => {
-  const storage = new MemoryStorage(undefined), db = new BetaDatabase(storage);
-  await db.init();
+  const sqliteDb = await createSQLiteDB(':memory:');
+  const db = new D1Database(new D1DatabaseAPI(sqliteDb));
   await db.batch(schema.map((item: string) => db.prepare(item)));
-  t.context = { storage, db };
+  t.context = { db };
 });
 
 test('Create an user', async (t) => {
