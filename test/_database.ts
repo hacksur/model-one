@@ -6,6 +6,6 @@ export const schema = [
     languages text,
     deleted_at datetime,
     created_at datetime,
-    updated_at datetime2
+    updated_at datetime
   );`
 ]

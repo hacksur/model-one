@@ -1,10 +1,10 @@
 import Joi from 'joi';
 declare const NotFoundError: () => null;
-declare type Column = {
+type Column = {
     name: string;
     type: 'string' | 'jsonb' | 'boolean';
 };
-declare type Columns = Column[];
+type Columns = Column[];
 interface SchemaConfigI {
     table_name: string;
     columns: Columns;
