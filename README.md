@@ -422,7 +422,6 @@ export class User extends Model implements UserI {
 - [x] Enhanced column types and constraints
 - [x] Soft and hard delete
 - [x] Basic tests
-- [ ] Unique values
 - [ ] Associations: belongs_to, has_one, has_many
 - [ ] Complex Forms for multiple Models
 
