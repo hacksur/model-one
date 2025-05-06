@@ -3,7 +3,19 @@ import Joi from 'joi'
 import { createSQLiteDB } from '@miniflare/shared';
 import { D1Database, D1DatabaseAPI } from '@miniflare/d1';
 import { Model, Schema, type SchemaConfigI, Form } from '../lib'
-import { schema } from './_database';
+
+export const schema = [
+  `
+  CREATE TABLE users (
+    id text PRIMARY KEY,
+    name text,
+    languages text,
+    deleted_at datetime,
+    created_at datetime,
+    updated_at datetime
+  );`
+]
+
 
 const joiSchema = Joi.object({
   id: Joi.string(),

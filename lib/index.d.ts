@@ -1,14 +1,41 @@
 import Joi from 'joi';
 declare const NotFoundError: () => null;
-type Column = {
+export type SQLiteType = 'TEXT' | 'INTEGER' | 'REAL' | 'NUMERIC' | 'BLOB' | 'JSON' | 'BOOLEAN' | 'TIMESTAMP' | 'DATE';
+/**
+ * Column definition for database tables mapped to JavaScript types
+ */
+export type ColumnType = 'string' | 'number' | 'boolean' | 'jsonb' | 'date';
+/**
+ * Column constraint types
+ */
+export type ConstraintType = 'PRIMARY KEY' | 'NOT NULL' | 'UNIQUE' | 'CHECK' | 'DEFAULT' | 'FOREIGN KEY';
+/**
+ * Column constraint definition
+ */
+export interface Constraint {
+    type: ConstraintType;
+    value?: string | number | boolean;
+}
+/**
+ * Column definition for database tables
+ */
+export interface Column {
     name: string;
-    type: 'string' | 'jsonb' | 'boolean';
-};
+    type: ColumnType;
+    sqliteType?: SQLiteType;
+    required?: boolean;
+    constraints?: Constraint[];
+}
 type Columns = Column[];
-interface SchemaConfigI {
+/**
+ * Schema configuration interface
+ */
+export interface SchemaConfigI {
     table_name: string;
     columns: Columns;
     uniques?: string[];
+    timestamps?: boolean;
+    softDeletes?: boolean;
 }
 declare class Form {
     schema: Joi.ObjectSchema<any>;
@@ -20,16 +47,32 @@ declare class Schema implements SchemaConfigI {
     table_name: string;
     columns: Columns;
     uniques: string[] | undefined;
+    timestamps: boolean;
+    softDeletes: boolean;
     constructor(props: {
         table_name: string;
         columns: Columns;
         uniques?: string[];
+        timestamps?: boolean;
+        softDeletes?: boolean;
     });
 }
 declare class Model {
     id: string;
     schema: SchemaConfigI;
     constructor(schema?: any, props?: any);
+    /**
+     * Maps JavaScript types to SQLite types
+     */
+    private static getDefaultSQLiteType;
+    /**
+     * Processes a value based on its column type for database storage
+     */
+    private static processValueForStorage;
+    /**
+     * Processes a database value based on column type for JavaScript usage
+     */
+    private static processValueFromStorage;
     private static deserializeData;
     private static serializeData;
     static create({ data }: any, env: any): Promise<any>;
@@ -41,6 +84,17 @@ declare class Model {
     static findOne(column: string, value: string, env: any, complete?: Boolean): Promise<any>;
     static findBy(column: string, value: string, env: any, complete?: Boolean): Promise<any>;
     static findById(id: string, env: any, complete?: Boolean): Promise<any>;
+    /**
+     * Execute raw SQL query
+     */
+    static raw(query: string, env: any): Promise<{
+        success: boolean;
+        message: string;
+        results?: undefined;
+    } | {
+        success: boolean;
+        results: any;
+        message?: undefined;
+    }>;
 }
-export { Model, Schema, Form, NotFoundError };
-export type { SchemaConfigI };
+export { Form, Schema, Model, NotFoundError };

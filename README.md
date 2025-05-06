@@ -12,18 +12,25 @@ Note: This package is still considered experimental. Breaking changes should be 
 
 ## Features
 
-- Basic CRUD Model.
-- UUID by default.
-- Timestamps for created_at and updated_at.
-- Validations by Joi.
-- Raw SQL queries.
+- Basic CRUD Model with PostgreSQL-like interface
+- Enhanced column types and constraints
+- UUID by default
+- Support for SQLite data types with JavaScript type mapping
+- Timestamps for created_at and updated_at
+- Soft delete functionality
+- Data serialization and deserialization
+- Validations by Joi
+- Raw SQL queries
 
 ## Table of Contents
 
 1. Install
 2. Example
-3. Methods
-4. Extend Methods
+3. Column Types and Constraints
+4. Schema Configuration
+5. Methods
+6. Soft Delete
+7. Extend Methods
 
 ## Install
 
@@ -41,7 +48,7 @@ yarn add model-one joi
 
 ## Example
 
-In the following example we are going to define an user with the following fields first_name and last_name.
+In the following example we are going to define a user with the following fields: first_name and last_name.
 
 1. Create a new database.
 
@@ -76,15 +83,17 @@ npx wrangler d1 execute example-db --file ./schema.sql
 ```js
 // ./models/User.ts
 import { Model, Schema } from 'model-one'
-import type { SchemaConfigI } from 'model-one';
+import type { SchemaConfigI, Column } from 'model-one';
 
 const userSchema: SchemaConfigI = new Schema({
   table_name: 'users',
   columns: [
-    { name: 'id', type: 'string' },
+    { name: 'id', type: 'string', constraints: [{ type: 'PRIMARY KEY' }] },
     { name: 'first_name', type: 'string' },
     { name: 'last_name', type: 'string' }
   ],
+  timestamps: true, // Optional, defaults to true
+  softDeletes: false // Optional, defaults to false
 })
 
 ```
@@ -126,16 +135,18 @@ export class User extends Model implements UserI {
 ```js
 // ./models/User.ts
 import { Model, Schema } from 'model-one'
-import type { SchemaConfigI } from 'model-one';
+import type { SchemaConfigI, Column } from 'model-one';
 import { UserI, UserDataI } from '../interfaces'
 
 const userSchema: SchemaConfigI = new Schema({
   table_name: 'users',
   columns: [
-    { name: 'id', type: 'string' },
+    { name: 'id', type: 'string', constraints: [{ type: 'PRIMARY KEY' }] },
     { name: 'first_name', type: 'string' },
     { name: 'last_name', type: 'string' }
   ],
+  timestamps: true,
+  softDeletes: false
 })
 
 export class User extends Model implements UserI {
@@ -171,6 +182,102 @@ export class UserForm extends Form {
 }
 
 
+```
+
+## Column Types and Constraints
+
+### Column Types
+
+model-one supports the following column types that map to SQLite types:
+
+```typescript
+// JavaScript column types
+type ColumnType = 
+  | 'string'   // SQLite: TEXT
+  | 'number'   // SQLite: INTEGER or REAL
+  | 'boolean'  // SQLite: INTEGER (0/1)
+  | 'jsonb'    // SQLite: TEXT (JSON stringified)
+  | 'date';    // SQLite: TEXT (ISO format)
+
+// SQLite native types
+type SQLiteType = 
+  | 'TEXT' 
+  | 'INTEGER' 
+  | 'REAL' 
+  | 'NUMERIC' 
+  | 'BLOB' 
+  | 'JSON' 
+  | 'BOOLEAN' 
+  | 'TIMESTAMP' 
+  | 'DATE';
+```
+
+Example usage:
+
+```typescript
+const columns = [
+  { name: 'id', type: 'string', sqliteType: 'TEXT' },
+  { name: 'name', type: 'string' },
+  { name: 'age', type: 'number', sqliteType: 'INTEGER' },
+  { name: 'active', type: 'boolean' },
+  { name: 'metadata', type: 'jsonb' },
+  { name: 'created', type: 'date' }
+];
+```
+
+### Column Constraints
+
+You can add constraints to your columns:
+
+```typescript
+type ConstraintType = 
+  | 'PRIMARY KEY' 
+  | 'NOT NULL' 
+  | 'UNIQUE' 
+  | 'CHECK' 
+  | 'DEFAULT' 
+  | 'FOREIGN KEY';
+
+interface Constraint {
+  type: ConstraintType;
+  value?: string | number | boolean;
+}
+```
+
+Example:
+
+```typescript
+const columns = [
+  { 
+    name: 'id', 
+    type: 'string', 
+    constraints: [{ type: 'PRIMARY KEY' }] 
+  },
+  { 
+    name: 'email', 
+    type: 'string', 
+    constraints: [{ type: 'UNIQUE' }, { type: 'NOT NULL' }] 
+  },
+  { 
+    name: 'status', 
+    type: 'string', 
+    constraints: [{ type: 'DEFAULT', value: 'active' }] 
+  }
+];
+```
+
+## Schema Configuration
+
+You can configure your schema with additional options:
+
+```typescript
+const schema = new Schema({
+  table_name: 'users',
+  columns: [...],
+  uniques: ['email', 'username'], // Composite unique constraints
+  timestamps: true,  // Adds created_at and updated_at columns (default: true)
+  softDeletes: true  // Enables soft delete functionality (default: false)
+});
 ```
 
 ## Methods
@@ -223,7 +330,7 @@ await User.update({ id, first_name: 'John' }, binding)
 
 ### Delete
 
-Delete an User
+Delete a User
 
 ```js
 // ./controllers/UserController.ts
@@ -233,6 +340,41 @@ import { User } from '../models/User';
 await User.delete(id, binding)
 
 ```
+
+### Raw SQL Queries
+
+Execute raw SQL queries with the new raw method:
+
+```js
+// ./controllers/UserController.ts
+import { User } from '../models/User';
+
+const { success, results } = await User.raw(
+  `SELECT * FROM users WHERE first_name LIKE '%John%'`, 
+  binding
+);
+
+if (success) {
+  console.log(results);
+}
+```
+
+## Soft Delete
+
+When enabled in your schema configuration, soft delete will set the `deleted_at` timestamp instead of removing the record:
+
+```typescript
+const userSchema = new Schema({
+  table_name: 'users',
+  columns: [...],
+  softDeletes: true // Enable soft delete
+});
+```
+
+When soft delete is enabled:
+- `delete()` will update the `deleted_at` field instead of removing the record
+- `all()`, `findById()`, `findOne()`, and `findBy()` will automatically filter out soft-deleted records
+- You can still access soft-deleted records with raw SQL queries if needed
 
 ## Extend Methods
 
@@ -276,12 +418,13 @@ export class User extends Model implements UserI {
 
 ## To do:
 
-- [x] Support JSONB.
-- [ ] Soft and hard delete.
-- [ ] Tests.
-- [ ] Unique values.
-- [ ] Associations: belongs_to, has_one, has_many.
-- [ ] Complex Forms for multiple Models.
+- [x] Support JSONB
+- [x] Enhanced column types and constraints
+- [x] Soft and hard delete
+- [x] Basic tests
+- [ ] Unique values
+- [ ] Associations: belongs_to, has_one, has_many
+- [ ] Complex Forms for multiple Models
 
 ## Contributors
 Julian Clatro
@@ -292,4 +435,3 @@ MIT
 [npm]: https://www.npmjs.com/
 
 [yarn]: https://yarnpkg.com/
-
