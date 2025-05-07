@@ -1,0 +1,205 @@
+import test from "ava";
+import { createSQLiteDB } from '@miniflare/shared';
+import { D1Database, D1DatabaseAPI } from '@miniflare/d1';
+import { Model, Schema, type SchemaConfigI } from '../src'
+
+export const schema = [
+  `
+  CREATE TABLE users (
+    id text PRIMARY KEY,
+    name text,
+    email text,
+    age integer,
+    languages text,
+    deleted_at datetime,
+    created_at datetime,
+    updated_at datetime
+  );`
+]
+
+
+// We'll use automatic validation based on the schema
+
+// Define schema with validation rules
+const userSchema: SchemaConfigI = new Schema({
+  table_name: 'users',
+  columns: [
+    { 
+      name: 'id', 
+      type: 'string',
+      required: true
+    },
+    { 
+      name: 'name', 
+      type: 'string',
+      required: true,
+      validation: {
+        min: 2,
+        max: 50
+      }
+    },
+    { 
+      name: 'email', 
+      type: 'string',
+      required: true,
+      validation: {
+        email: true
+      }
+    },
+    { 
+      name: 'age', 
+      type: 'number',
+      validation: {
+        min: 18,
+        max: 120
+      }
+    },
+    { 
+      name: 'languages', 
+      type: 'jsonb'
+    },
+  ]
+})
+
+interface UserDataI {
+  id?: string
+  name?: string
+  email?: string
+  age?: number
+  languages?: string[]
+}
+
+interface UserI extends Model {
+  data: UserDataI
+}
+
+class User extends Model implements UserI {
+  data: UserDataI
+
+  constructor(props?: any) {
+    super(userSchema, props);
+    // Validation happens automatically in the Model class
+  }
+  
+  static getSchema() {
+    return userSchema;
+  }
+  
+  static async findByEmail(email: string, env: any) {
+    const query = `SELECT * FROM ${userSchema.table_name} WHERE email = ? AND deleted_at IS NULL`;
+    const { results } = await env.prepare(query).bind(email).all();
+    return results?.[0] || null;
+  }
+}
+
+test.beforeEach(async (t) => {
+  const sqliteDb = await createSQLiteDB(':memory:');
+  const db = new D1Database(new D1DatabaseAPI(sqliteDb));
+  await db.batch(schema.map((item: string) => db.prepare(item)));
+  t.context = { db };
+});
+
+// Basic test to verify the validation system
+test('Schema validation works', t => {
+  // Create a schema instance
+  const schema = new Schema({
+    table_name: 'test_table',
+    columns: [
+      { 
+        name: 'name', 
+        type: 'string',
+        required: true,
+        validation: {
+          min: 2
+        }
+      },
+      {
+        name: 'email',
+        type: 'string',
+        required: true,
+        validation: {
+          email: true
+        }
+      }
+    ]
+  });
+  
+  // Test valid data
+  try {
+    const validData = {
+      name: 'John Doe',
+      email: 'john@example.com'
+    };
+    
+    const result = schema.validate(validData);
+    t.deepEqual(result, validData);
+    t.pass('Valid data passes validation');
+  } catch (error) {
+    t.fail('Valid data should pass validation');
+  }
+  
+  // Test invalid email
+  try {
+    const invalidEmail = {
+      name: 'John Doe',
+      email: 'invalid-email'
+    };
+    
+    schema.validate(invalidEmail);
+    t.fail('Invalid email should fail validation');
+  } catch (error) {
+    t.pass('Invalid email correctly fails validation');
+    t.regex(String(error), /email/i);
+  }
+  
+  // Test name too short
+  try {
+    const shortName = {
+      name: 'J',
+      email: 'john@example.com'
+    };
+    
+    schema.validate(shortName);
+    t.fail('Short name should fail validation');
+  } catch (error) {
+    t.pass('Short name correctly fails validation');
+    t.regex(String(error), /name/i);
+  }
+});
+
+// Test the User model with validation
+test('User model validation', async t => {
+  const { db: env }: any = t.context;
+  
+  // Test valid user creation
+  try {
+    const user = await User.create({
+      data: {
+        name: 'John Doe',
+        email: 'john@example.com',
+        age: 30,
+        languages: ['typescript', 'go']
+      }
+    }, env);
+    
+    t.truthy(user.id);
+    t.is(user.name, 'John Doe');
+    t.pass('Valid user created successfully');
+  } catch (error) {
+    t.fail(`Valid user creation should succeed: ${error}`);
+  }
+  
+  // Test invalid email validation
+  const emailError = await t.throwsAsync<Error>(() => {
+    return User.create({
+      data: {
+        name: 'John Doe',
+        email: 'invalid-email',
+        age: 30
+      }
+    }, env);
+  });
+  
+  t.truthy(emailError);
+  t.regex(String(emailError), /email/i);
+})

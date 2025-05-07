@@ -1,4 +1,4 @@
-import Joi from 'joi';
+import { z } from 'zod';
 declare const NotFoundError: () => null;
 export type SQLiteType = 'TEXT' | 'INTEGER' | 'REAL' | 'NUMERIC' | 'BLOB' | 'JSON' | 'BOOLEAN' | 'TIMESTAMP' | 'DATE';
 /**
@@ -38,9 +38,9 @@ export interface SchemaConfigI {
     softDeletes?: boolean;
 }
 declare class Form {
-    schema: Joi.ObjectSchema<any>;
+    schema: z.ZodType<any>;
     data: any;
-    constructor(schema: Joi.ObjectSchema<any>, data: any);
+    constructor(schema: z.ZodType<any>, data: any);
     validate(): void;
 }
 declare class Schema implements SchemaConfigI {

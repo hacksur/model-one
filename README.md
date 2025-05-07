@@ -6,20 +6,25 @@
 [![license](https://img.shields.io/github/license/hacksur/model-one.svg)](LICENSE)
 [![npm downloads](https://img.shields.io/npm/dt/model-one.svg)](https://npm.im/model-one)
 
-Set of utility classes for Cloudflare Workers D1 with validations by Joi inspired by [reform](https://github.com/trailblazer/reform).
+Set of utility classes for Cloudflare Workers D1 with automatic data validation for SQLite databases, inspired by [reform](https://github.com/trailblazer/reform).
 
 Note: This package is still considered experimental. Breaking changes should be expected.
 
 ## Features
 
-- Basic CRUD Model with PostgreSQL-like interface
+- Basic CRUD operations with a PostgreSQL-like interface
+- UUID generation by default
+- Timestamps for created_at and updated_at
+- **Automatic data validation using Zod**
+- Schema-based validations with rich rules
 - Enhanced column types and constraints
-- UUID by default
-- Support for SQLite data types with JavaScript type mapping
+- Support for soft deletes
+- Raw SQL query support
+- Support for JSON data types with JavaScript type mapping
 - Timestamps for created_at and updated_at
 - Soft delete functionality
 - Data serialization and deserialization
-- Validations by Joi
+- Automatic data validation based on schema definitions (powered by Zod internally)
 - Raw SQL queries
 
 ## Table of Contents
@@ -37,13 +42,13 @@ Note: This package is still considered experimental. Breaking changes should be 
 [npm][]:
 
 ```sh
-npm install model-one joi
+npm install model-one
 ```
 
 [yarn][]:
 
 ```sh
-yarn add model-one joi
+yarn add model-one
 ```
 
 ## Example
@@ -113,7 +118,7 @@ export interface UserI extends Model {
 }
 ```
 
-4. Now we are going import the types and extend the User
+4. Now we are import the types and extend the User
 
 ```js
 // ./models/User.ts
@@ -161,27 +166,265 @@ export class User extends Model implements UserI {
 ```
 
 
-6. After creating the User we are going to create the form that handles the validations. And with the help of Joi we are going to define the fields.
+6. After creating the User model, validation is handled automatically! The model now validates data based on your schema definition:
 
 ```js
-// ./forms/UserForm.ts
-import { Form } from 'model-one'
-import { UserI } from '../interfaces'
-import Joi from 'joi'
+// ./models/User.ts
+import { Model, Schema } from 'model-one'
+import type { SchemaConfigI, Column } from 'model-one';
+import { UserI, UserDataI } from '../interfaces'
 
-const schema = Joi.object({
-  id: Joi.string(),
-  first_name: Joi.string(),
-  last_name: Joi.string(),
+// Define your schema with validation constraints
+const userSchema: SchemaConfigI = new Schema({
+  table_name: 'users',
+  columns: [
+    { 
+      name: 'id', 
+      type: 'string', 
+      constraints: [{ type: 'PRIMARY KEY' }] 
+    },
+    { 
+      name: 'first_name', 
+      type: 'string', 
+      required: true,  // This field will be validated automatically
+      constraints: [{ type: 'NOT NULL' }]
+    },
+    { 
+      name: 'last_name', 
+      type: 'string',
+      required: true
+    },
+    {
+      name: 'email',
+      type: 'string',
+      required: true,
+      constraints: [{ type: 'UNIQUE' }]
+    },
+    {
+      name: 'age',
+      type: 'number'
+    }
+  ],
+  timestamps: true,
+  softDeletes: false
 })
 
-export class UserForm extends Form {
-  constructor(data: UserI) {
-    super(schema, data)
+export class User extends Model implements UserI {
+  data: UserDataI
+
+  constructor(props: UserDataI) {
+    super(userSchema, props)
+    this.data = props
   }
 }
 
+// Usage example - validation happens automatically
+async function createUser(data: UserDataI, env: any) {
+  try {
+    // Data is automatically validated against the schema
+    const user = await User.create({ data }, env);
+    return user;
+  } catch (error) {
+    // Validation errors are caught here
+    console.error('Validation error:', error.message);
+    throw error;
+  }
+}
 
+// Update with automatic validation
+async function updateUser(id: string, data: UserDataI, env: any) {
+  try {
+    // Data is automatically validated before update
+    const updatedUser = await User.update({ ...data, id }, env);
+    return updatedUser;
+  } catch (error) {
+    console.error('Validation error:', error.message);
+    throw error;
+  }
+}
+
+## Advanced Validation Examples
+
+While validation is now automatic based on your schema definition, you can still customize validation rules for specific fields. The Model class now automatically creates validation rules from your schema, but you can enhance it with custom validation by extending the model:
+
+```js
+import { Model, Schema, ValidationField, ValidationSchema } from 'model-one';
+
+const userSchema = new Schema({
+  table_name: 'users',
+  columns: [...] // Your schema columns
+});
+
+class User extends Model {
+  constructor(props) {
+    super(userSchema, props);
+    
+    // Override the automatic validation with custom validation rules
+    this.validationSchema = ValidationSchema.createSchema([
+      { 
+        name: 'username', 
+        type: 'string',
+        rules: { 
+          required: true, 
+          alphanum: true,
+          min: 3,
+          max: 30
+        } 
+      },
+      {
+        name: 'email',
+        type: 'string',
+        rules: {
+          email: {
+            minDomainSegments: 2,
+            tlds: { allow: ['com', 'net', 'org'] }
+          }
+        }
+      },
+      // Other fields with advanced validation
+    ]);
+  }
+}
+
+Here are examples of advanced validation capabilities built into your models:
+
+```js
+import { Model, Schema, ValidationField, ValidationSchema, SchemaValidationRules } from 'model-one';
+
+// First, define your database schema as usual
+const userDbSchema = new Schema({
+  table_name: 'users',
+  columns: [
+    { name: 'id', type: 'string', constraints: [{ type: 'PRIMARY KEY' }] },
+    { name: 'username', type: 'string', required: true },
+    { name: 'password', type: 'string' },
+    { name: 'repeat_password', type: 'string' },
+    { name: 'access_token', type: 'string' },
+    { name: 'birth_year', type: 'number' },
+    { name: 'email', type: 'string' }
+  ],
+  timestamps: true
+});
+
+// Then, extend the Model with custom validation logic
+class User extends Model {
+  constructor(props) {
+    super(userDbSchema, props);
+    
+    // Define advanced validation fields
+    const userValidationFields: ValidationField[] = [
+      { 
+        name: 'username', 
+        type: 'string',
+        rules: { 
+          required: true, 
+          alphanum: true,   // Must be alphanumeric
+          min: 3,          // Min length
+          max: 30          // Max length
+        } 
+      },
+      { 
+        name: 'password', 
+        type: 'string',
+        rules: { 
+          pattern: new RegExp('^[a-zA-Z0-9]{3,30}$') // Regex pattern
+        } 
+      },
+      {
+        name: 'repeat_password',
+        type: 'string',
+        ref: 'password'  // Reference to another field
+      },
+      {
+        name: 'access_token',
+        type: ['string', 'number'] // Union type - accepts multiple types
+      },
+      {
+        name: 'birth_year',
+        type: 'integer',
+        rules: {
+          min: 1900,
+          max: 2013
+        }
+      },
+      {
+        name: 'email',
+        type: 'string',
+        rules: {
+          email: {
+            minDomainSegments: 2,    // example.com (2 segments)
+            tlds: { allow: ['com', 'net'] }  // Only allow these TLDs
+          }
+        }
+      }
+    ];
+
+    // Define schema-level validation rules
+    const schemaRules: SchemaValidationRules = {
+      // username must be accompanied by birth_year
+      with: { 'username': 'birth_year' },
+      
+      // either password or access_token must be present (but not both)
+      xor: ['password', 'access_token'],
+      
+      // when password is present, repeat_password is required
+      whenPresent: { field: 'password', require: ['repeat_password'] }
+    };
+
+    // Set the model's validation schema
+    this.validationSchema = ValidationSchema.createSchema(userValidationFields, schemaRules);
+  }
+}
+```
+
+### Schema-Level Validation Rules
+
+For more complex validation requirements that involve relationships between fields, you can use schema-level validation rules:
+
+```js
+import { Model, Schema, ValidationSchema, SchemaValidationRules } from 'model-one';
+
+// Define schema-level validation rules
+const schemaRules: SchemaValidationRules = {
+  // username must be accompanied by birth_year
+  with: { 'username': 'birth_year' },
+  
+  // either password or access_token must be present (but not both)
+  xor: ['password', 'access_token'],
+  
+  // when password is present, repeat_password is required
+  whenPresent: { field: 'password', require: ['repeat_password'] }
+};
+
+class User extends Model {
+  constructor(props) {
+    super(userSchema, props);
+    
+    // Create validation fields based on columns
+    const validationFields = userSchema.columns.map(column => ({
+      name: column.name,
+      type: this.mapColumnTypeToValidationType(column.type),
+      rules: {
+        required: column.required || false
+      }
+    }));
+    
+    // Apply schema-level validation rules
+    this.validationSchema = ValidationSchema.createSchema(validationFields, schemaRules);
+  }
+  
+  // Helper method to map column types to validation types
+  private mapColumnTypeToValidationType(columnType) {
+    switch (columnType) {
+      case 'string': return 'string';
+      case 'number': return 'number';
+      case 'boolean': return 'boolean';
+      case 'jsonb': return 'json';
+      case 'date': return 'date';
+      default: return 'string';
+    }
+  }
+}
 ```
 
 ## Column Types and Constraints
@@ -415,15 +658,6 @@ export class User extends Model implements UserI {
 }
 
 ```
-
-## To do:
-
-- [x] Support JSONB
-- [x] Enhanced column types and constraints
-- [x] Soft and hard delete
-- [x] Basic tests
-- [ ] Associations: belongs_to, has_one, has_many
-- [ ] Complex Forms for multiple Models
 
 ## Contributors
 Julian Clatro

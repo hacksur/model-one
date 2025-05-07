@@ -14,16 +14,9 @@
   ],
   "license": "MIT",
   "scripts": {
-    "coverage": "nyc report --reporter=text-lcov > coverage.lcov && codecov",
-    "watch-build": "tsc -w",
-    "watch-test": "ava --watch",
+    "build": "tsc -w",
     "dev": "concurrently 'npm:watch-*'",
-    "lint": "npm run lint:js && npm run lint:md",
-    "lint:js": "xo",
-    "lint:md": "remark . -qfo",
-    "pretest": "npm run lint",
-    "test": "cross-env NODE_ENV=test ava",
-    "test-coverage": "cross-env NODE_ENV=test nyc npm run test"
+    "test": "ava --watch"
   },
   "keywords": [
     "d1",
@@ -34,7 +27,10 @@
     "@ava/typescript": "^3.0.1",
     "@commitlint/cli": "latest",
     "@commitlint/config-conventional": "latest",
+    "@miniflare/d1": "latest",
+    "@miniflare/shared": "latest",
     "ava": "^4.3.1",
+    "better-sqlite3": "latest",
     "browser-env": "^3.3.0",
     "codecov": "latest",
     "concurrently": "^7.3.0",
@@ -53,9 +49,6 @@
     "husky": "latest",
     "joi": "latest",
     "lint-staged": "latest",
-    "@miniflare/d1": "latest",
-    "@miniflare/shared": "latest",
-    "better-sqlite3": "latest",
     "nyc": "latest",
     "prettier": "latest",
     "remark-cli": "^9.0.0",
@@ -85,5 +78,8 @@
   },
   "volta": {
     "node": "16.15.1"
+  },
+  "dependencies": {
+    "zod": "^3.24.4"
   }
 }

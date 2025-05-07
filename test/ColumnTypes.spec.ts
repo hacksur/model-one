@@ -1,8 +1,9 @@
 import test from "ava";
-import Joi from 'joi';
+// Import directly from source to access new validation APIs
+import { ValidationField, Form, Model, Schema, type SchemaConfigI, type Column } from '../src';
 import { createSQLiteDB } from '@miniflare/shared';
 import { D1Database, D1DatabaseAPI } from '@miniflare/d1';
-import { Model, Schema, type SchemaConfigI, Form, type Column } from '../lib';
+// No need for this import anymore since we're importing directly from src
 
 // Create a test table with all supported column types
 export const schema = [
@@ -21,16 +22,16 @@ export const schema = [
   );`
 ];
 
-// Define Joi validation schema for the form
-const advancedEntityJoiSchema = Joi.object({
-  id: Joi.string(),
-  string_value: Joi.string(),
-  number_value: Joi.number(),
-  integer_value: Joi.number().integer(),
-  boolean_value: Joi.boolean(),
-  json_value: Joi.object(),
-  date_value: Joi.date()
-});
+// Define validation fields for the form
+const advancedEntityValidation: ValidationField[] = [
+  { name: 'id', type: 'string' },
+  { name: 'string_value', type: 'string' },
+  { name: 'number_value', type: 'number' },
+  { name: 'integer_value', type: 'integer' },
+  { name: 'boolean_value', type: 'boolean' },
+  { name: 'json_value', type: 'json' },
+  { name: 'date_value', type: 'date' }
+];
 
 // Define columns with the new enhanced column types
 const columns: Column[] = [
@@ -69,7 +70,7 @@ interface AdvancedEntityI extends Model {
 // Form class for validation
 export class AdvancedEntityForm extends Form {
   constructor(data: AdvancedEntityI) {
-    super(advancedEntityJoiSchema, data);
+    super(advancedEntityValidation, data);
   }
 }
 
