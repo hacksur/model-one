@@ -10,7 +10,6 @@ export type SQLiteType =
   | 'REAL' 
   | 'NUMERIC' 
   | 'BLOB' 
-  | 'JSON' 
   | 'BOOLEAN' 
   | 'TIMESTAMP' 
   | 'DATE';

@@ -1,6 +1,6 @@
 import Joi from 'joi';
 declare const NotFoundError: () => null;
-export type SQLiteType = 'TEXT' | 'INTEGER' | 'REAL' | 'NUMERIC' | 'BLOB' | 'JSON' | 'BOOLEAN' | 'TIMESTAMP' | 'DATE';
+export type SQLiteType = 'TEXT' | 'INTEGER' | 'REAL' | 'NUMERIC' | 'BLOB' | 'BOOLEAN' | 'TIMESTAMP' | 'DATE';
 /**
  * Column definition for database tables mapped to JavaScript types
  */

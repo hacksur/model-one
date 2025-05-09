@@ -1,7 +1,7 @@
 {
   "name": "model-one",
   "description": "Model for D1",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "main": "./lib/index.js",
   "typings": "./lib/index.d.ts",
   "repository": {
@@ -14,16 +14,11 @@
   ],
   "license": "MIT",
   "scripts": {
-    "coverage": "nyc report --reporter=text-lcov > coverage.lcov && codecov",
     "watch-build": "tsc -w",
     "watch-test": "ava --watch",
     "dev": "concurrently 'npm:watch-*'",
-    "lint": "npm run lint:js && npm run lint:md",
-    "lint:js": "xo",
-    "lint:md": "remark . -qfo",
-    "pretest": "npm run lint",
-    "test": "cross-env NODE_ENV=test ava",
-    "test-coverage": "cross-env NODE_ENV=test nyc npm run test"
+    "test": "ava --watch",
+    "build": "tsc"
   },
   "keywords": [
     "d1",
@@ -32,37 +27,15 @@
   ],
   "devDependencies": {
     "@ava/typescript": "^3.0.1",
-    "@commitlint/cli": "latest",
-    "@commitlint/config-conventional": "latest",
     "ava": "^4.3.1",
     "browser-env": "^3.3.0",
-    "codecov": "latest",
     "concurrently": "^7.3.0",
-    "cross-env": "latest",
-    "eslint": "latest",
-    "eslint-config-prettier": "latest",
-    "eslint-config-xo": "latest",
-    "eslint-plugin-ava": "latest",
-    "eslint-plugin-compat": "latest",
-    "eslint-plugin-import": "latest",
-    "eslint-plugin-node": "latest",
-    "eslint-plugin-prettier": "latest",
-    "eslint-plugin-promise": "latest",
-    "eslint-plugin-unicorn": "latest",
-    "fixpack": "latest",
-    "husky": "latest",
     "joi": "latest",
-    "lint-staged": "latest",
     "@miniflare/d1": "latest",
     "@miniflare/shared": "latest",
     "better-sqlite3": "latest",
-    "nyc": "latest",
-    "prettier": "latest",
-    "remark-cli": "^9.0.0",
-    "remark-preset-github": "latest",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^4.7.4",
-    "xo": "^0.53.1"
+    "typescript": "^4.7.4"
   },
   "engines": {
     "node": ">= 10"
