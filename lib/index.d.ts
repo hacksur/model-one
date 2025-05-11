@@ -99,10 +99,23 @@ declare class Model {
     static delete(id: string, env: any): Promise<{
         message: string;
     }>;
+    /**
+     * Restores a soft-deleted record by setting deleted_at to NULL
+     * @param id The ID of the record to restore
+     * @param env The database environment
+     * @returns A message indicating success or failure
+     */
+    static restore(id: string, env: any): Promise<{
+        message: string;
+        data?: undefined;
+    } | {
+        message: string;
+        data: any;
+    }>;
     static all(env: any): Promise<any>;
-    static findOne(column: string, value: string, env: any, complete?: Boolean): Promise<any>;
-    static findBy(column: string, value: string, env: any, complete?: Boolean): Promise<any>;
-    static findById(id: string, env: any, complete?: Boolean): Promise<any>;
+    static findOne(column: string, value: string, env: any, complete?: Boolean, includeDeleted?: Boolean): Promise<any>;
+    static findBy(column: string, value: string, env: any, complete?: Boolean, includeDeleted?: Boolean): Promise<any>;
+    static findById(id: string, env: any, complete?: Boolean, includeDeleted?: Boolean): Promise<any>;
     /**
      * Execute raw SQL query
      */
