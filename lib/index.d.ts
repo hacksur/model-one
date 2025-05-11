@@ -1,5 +1,9 @@
 import Joi from 'joi';
 declare const NotFoundError: () => null;
+declare class ModelError extends Error {
+    errors: string[];
+    constructor(message: string, errors?: string[]);
+}
 export type SQLiteType = 'TEXT' | 'INTEGER' | 'REAL' | 'NUMERIC' | 'BLOB' | 'BOOLEAN' | 'TIMESTAMP' | 'DATE';
 /**
  * Column definition for database tables mapped to JavaScript types
@@ -112,4 +116,4 @@ declare class Model {
         message?: undefined;
     }>;
 }
-export { Form, Schema, Model, NotFoundError, ModelDataI };
+export { Form, Schema, Model, NotFoundError, ModelDataI, ModelError };

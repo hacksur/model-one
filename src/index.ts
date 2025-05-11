@@ -4,6 +4,16 @@ const NotFoundError = () => {
   return null
 }
 
+class ModelError extends Error {
+  errors: string[];
+  
+  constructor(message: string, errors: string[] = []) {
+    super(message);
+    this.name = 'ModelError';
+    this.errors = errors;
+  }
+}
+
 export type SQLiteType = 
   | 'TEXT' 
   | 'INTEGER' 
@@ -92,7 +102,7 @@ class Form {
   validate() {
     const { error } = this.schema.validate(this.data)
     if (error !== undefined) {
-      throw new Error(error.message)
+      throw new ModelError(error.message, error.details.map(detail => detail.message))
     }
   }
 }
@@ -514,5 +524,6 @@ export {
   Schema,
   Model,
   NotFoundError,
-  ModelDataI
+  ModelDataI,
+  ModelError
 }
