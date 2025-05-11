@@ -263,17 +263,29 @@ class Model {
 
   /**
    * Creates a new instance of the Model class from raw data
+   * @param data The data to create the model from
+   * @param includeSchema Whether to include schema information in the returned model (default: false)
+   * @returns A model instance with or without schema information
    */
-  private static createModelInstance(data: any): Model {
-    const instance = new this();
-    instance.id = data.id;
-    
-    // Copy all properties from data to the instance's data property
-    Object.keys(data).forEach(key => {
-      instance.data[key] = data[key];
-    });
-    
-    return instance;
+  private static createModelInstance(data: any, includeSchema: boolean = false): any {
+    if (includeSchema) {
+      // Return full model with schema for internal use
+      const instance = new this();
+      instance.id = data.id;
+      
+      // Copy all properties from data to the instance's data property
+      Object.keys(data).forEach(key => {
+        instance.data[key] = data[key];
+      });
+      
+      return instance;
+    } else {
+      // Return a simplified model without schema for external use
+      return {
+        id: data.id,
+        data: { ...data }
+      };
+    }
   }
 
   static async create({ data }: any, env: any) {
@@ -299,7 +311,7 @@ class Model {
       const serializedData = this.serializeData(output, schema);
       
       // Return a new Model instance with the serialized data
-      return this.createModelInstance(serializedData);
+      return this.createModelInstance(serializedData, false);
     } else {
       return NotFoundError();
     }
@@ -330,7 +342,7 @@ class Model {
       const serializedData = this.serializeData(result, schema);
       
       // Return a new Model instance with the serialized data
-      return this.createModelInstance(serializedData);
+      return this.createModelInstance(serializedData, false);
     }
   }
 
@@ -383,7 +395,7 @@ class Model {
         const serializedData = this.serializeData(data, schema);
         
         // Return a new Model instance with the serialized data
-        return this.createModelInstance(serializedData);
+        return this.createModelInstance(serializedData, false);
       });
     }
   }
@@ -413,7 +425,7 @@ class Model {
         const serializedData = this.serializeData(data, schema);
         
         // Return a new Model instance with the serialized data
-        return this.createModelInstance(serializedData);
+        return this.createModelInstance(serializedData, false);
       }
     } else {
       return NotFoundError();
@@ -445,8 +457,8 @@ class Model {
           const { deleted_at, created_at, updated_at, ...data } = result;
           const serializedData = this.serializeData(data, schema);
           
-          // Return a new Model instance with the serialized data
-          return this.createModelInstance(serializedData);
+          // Return a new Model instance with the serialized data (without schema)
+          return this.createModelInstance(serializedData, false);
         }
       });
     } else {
@@ -479,7 +491,7 @@ class Model {
         const serializedData = this.serializeData(data, schema);
         
         // Return a new Model instance with the serialized data
-        return this.createModelInstance(serializedData);
+        return this.createModelInstance(serializedData, false);
       }
     } else {
       return NotFoundError();

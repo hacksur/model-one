@@ -97,7 +97,9 @@ class User extends Model implements UserI {
 async function createUser(data: UserDataI, binding: any): Promise<any> {
   const entity = new User(data);
   const form = new UserForm(entity);
-  return User.create(form, binding);
+  const createdUser = await User.create(form, binding);
+  console.log('createdUser', createdUser);
+  return createdUser;
 }
 
 // Setup test database before each test

@@ -85,12 +85,13 @@ declare class Model {
     private static serializeData;
     /**
      * Creates a new instance of the Model class from raw data
+     * @param data The data to create the model from
+     * @param includeSchema Whether to include schema information in the returned model (default: false)
+     * @returns A model instance with or without schema information
      */
     private static createModelInstance;
-    static create({ data }: any, env: any): Promise<Model | null>;
-    static update(data: any, env: any): Promise<Model | {
-        message: string;
-    } | undefined>;
+    static create({ data }: any, env: any): Promise<any>;
+    static update(data: any, env: any): Promise<any>;
     static delete(id: string, env: any): Promise<{
         message: string;
     }>;
