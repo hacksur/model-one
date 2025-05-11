@@ -165,6 +165,10 @@ class Model {
    */
   private static processValueForStorage(value: any, columnType: ColumnType): any {
     if (value === null || value === undefined) {
+      // For JSON fields, store null as 'null' string to ensure it's properly handled
+      if (columnType === 'jsonb') {
+        return 'null';
+      }
       return null;
     }
 
@@ -194,6 +198,10 @@ class Model {
       case 'number':
         return Number(value);
       case 'jsonb':
+        // Handle null/empty string for JSON fields
+        if (value === '' || value === 'null') {
+          return null;
+        }
         return typeof value === 'string' ? JSON.parse(value) : value;
       case 'date':
         return value; // Client code can convert to Date if needed
@@ -241,16 +249,20 @@ class Model {
       const attributes: string[] = [];
       
       schema.columns.forEach((column) => {
-        if (column.name === 'id' || data[column.name] === undefined) return;
+        // Special handling for explicit undefined/null values for JSON fields
+        if (column.name === 'id') return;
         
-        const processedValue = this.processValueForStorage(data[column.name], column.type);
-        
-        if (processedValue === null) {
-          attributes.push(`${column.name} = NULL`);
-        } else if (typeof processedValue === 'number') {
-          attributes.push(`${column.name} = ${processedValue}`);
-        } else {
-          attributes.push(`${column.name} = '${processedValue}'`);
+        // Check if the property exists in the data object, even if it's null or undefined
+        if (Object.prototype.hasOwnProperty.call(data, column.name)) {
+          const processedValue = this.processValueForStorage(data[column.name], column.type);
+          
+          if (processedValue === null) {
+            attributes.push(`${column.name} = NULL`);
+          } else if (typeof processedValue === 'number') {
+            attributes.push(`${column.name} = ${processedValue}`);
+          } else {
+            attributes.push(`${column.name} = '${processedValue}'`);
+          }
         }
       });
       
@@ -265,6 +277,16 @@ class Model {
     schema.columns.forEach((column) => {
       if (data[column.name] !== undefined) {
         result[column.name] = this.processValueFromStorage(data[column.name], column.type);
+      } else {
+        // Explicitly set undefined values to null for consistency
+        result[column.name] = null;
+      }
+    });
+    
+    // Final pass to ensure no undefined values remain
+    Object.keys(result).forEach(key => {
+      if (result[key] === undefined) {
+        result[key] = null;
       }
     });
     
@@ -291,9 +313,17 @@ class Model {
       return instance;
     } else {
       // Return a simplified model without schema for external use
+      // Ensure all undefined values are converted to null for consistency
+      const cleanData = { ...data };
+      Object.keys(cleanData).forEach(key => {
+        if (cleanData[key] === undefined) {
+          cleanData[key] = null;
+        }
+      });
+      
       return {
         id: data.id,
-        data: { ...data }
+        data: cleanData
       };
     }
   }
