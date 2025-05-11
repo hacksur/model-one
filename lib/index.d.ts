@@ -95,7 +95,7 @@ declare class Model {
      */
     private static createModelInstance;
     static create({ data }: any, env: any): Promise<any>;
-    static update(data: any, env: any): Promise<any>;
+    static update({ data }: any, env: any): Promise<any>;
     static delete(id: string, env: any): Promise<{
         message: string;
     }>;

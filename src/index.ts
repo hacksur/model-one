@@ -327,7 +327,7 @@ class Model {
     }
   }
 
-  static async update(data: any, env: any) {
+  static async update({ data }: any, env: any) {
     const { schema } = new this();
     const { id } = data;
     
