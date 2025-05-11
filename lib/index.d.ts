@@ -37,6 +37,13 @@ export interface SchemaConfigI {
     timestamps?: boolean;
     softDeletes?: boolean;
 }
+/**
+ * Model data interface
+ */
+interface ModelDataI {
+    id?: string;
+    [key: string]: any;
+}
 declare class Form {
     schema: Joi.ObjectSchema<any>;
     data: any;
@@ -58,9 +65,10 @@ declare class Schema implements SchemaConfigI {
     });
 }
 declare class Model {
-    id: string;
+    id: string | null;
     schema: SchemaConfigI;
-    constructor(schema?: any, props?: any);
+    data: ModelDataI;
+    constructor(schema?: SchemaConfigI, props?: ModelDataI);
     /**
      * Maps JavaScript types to SQLite types
      */
@@ -75,8 +83,14 @@ declare class Model {
     private static processValueFromStorage;
     private static deserializeData;
     private static serializeData;
-    static create({ data }: any, env: any): Promise<any>;
-    static update(data: any, env: any): Promise<any>;
+    /**
+     * Creates a new instance of the Model class from raw data
+     */
+    private static createModelInstance;
+    static create({ data }: any, env: any): Promise<Model | null>;
+    static update(data: any, env: any): Promise<Model | {
+        message: string;
+    } | undefined>;
     static delete(id: string, env: any): Promise<{
         message: string;
     }>;
@@ -97,4 +111,4 @@ declare class Model {
         message?: undefined;
     }>;
 }
-export { Form, Schema, Model, NotFoundError };
+export { Form, Schema, Model, NotFoundError, ModelDataI };

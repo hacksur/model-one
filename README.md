@@ -1,4 +1,4 @@
-# Model 1
+# Model One
 
 [![code style](https://img.shields.io/badge/code_style-XO-5ed9c7.svg)](https://github.com/sindresorhus/xo)
 [![styled with prettier](https://img.shields.io/badge/styled_with-prettier-ff69b4.svg)](https://github.com/prettier/prettier)
@@ -6,33 +6,35 @@
 [![license](https://img.shields.io/github/license/hacksur/model-one.svg)](LICENSE)
 [![npm downloads](https://img.shields.io/npm/dt/model-one.svg)](https://npm.im/model-one)
 
-Set of utility classes for Cloudflare Workers D1 with validations by Joi inspired by [reform](https://github.com/trailblazer/reform).
-
-Note: This package is still considered experimental. Breaking changes should be expected.
+A powerful ORM-like library for Cloudflare Workers D1 with validation support via Joi, inspired by [reform](https://github.com/trailblazer/reform).
 
 ## Features
 
-- Basic CRUD Model with PostgreSQL-like interface
-- Enhanced column types and constraints
-- UUID by default
-- Support for SQLite data types with JavaScript type mapping
-- Timestamps for created_at and updated_at
-- Soft delete functionality
-- Data serialization and deserialization
-- Validations by Joi
-- Raw SQL queries
+- **Type-safe models** with TypeScript support
+- **Basic CRUD operations** with a PostgreSQL-like interface
+- **Enhanced column types** including string, number, boolean, date, and JSON
+- **UUID generation** by default for primary keys
+- **Automatic timestamps** for created_at and updated_at fields
+- **Soft delete functionality** for non-destructive record removal
+- **Data serialization and deserialization** for complex data types
+- **Form validation** powered by Joi
+- **Raw SQL query support** for complex operations
+- **Proper data encapsulation** through the data property pattern
 
 ## Table of Contents
 
-1. Install
-2. Example
-3. Column Types and Constraints
-4. Schema Configuration
-5. Methods
-6. Soft Delete
-7. Extend Methods
+1. [Installation](#installation)
+2. [Quick Start](#quick-start)
+3. [Model Definition](#model-definition)
+4. [Schema Configuration](#schema-configuration)
+5. [Column Types and Constraints](#column-types-and-constraints)
+6. [Form Validation](#form-validation)
+7. [CRUD Operations](#crud-operations)
+8. [Soft Delete](#soft-delete)
+9. [Extending Models](#extending-models)
+10. [TypeScript Support](#typescript-support)
 
-## Install
+## Installation
 
 [npm][]:
 
@@ -46,9 +48,334 @@ npm install model-one joi
 yarn add model-one joi
 ```
 
-## Example
+## Quick Start
 
-In the following example we are going to define a user with the following fields: first_name and last_name.
+```typescript
+import { Model, Schema, Form } from 'model-one';
+import Joi from 'joi';
+
+// Define schema
+const userSchema = new Schema({
+  table_name: 'users',
+  columns: [
+    { name: 'id', type: 'string' },
+    { name: 'name', type: 'string' },
+    { name: 'email', type: 'string' },
+    { name: 'preferences', type: 'jsonb' }
+  ],
+  timestamps: true,
+  softDeletes: true
+});
+
+// Define validation schema
+const joiSchema = Joi.object({
+  id: Joi.string(),
+  name: Joi.string().required(),
+  email: Joi.string().email().required(),
+  preferences: Joi.object()
+});
+
+// Define interfaces
+interface UserDataI {
+  id?: string;
+  name?: string;
+  email?: string;
+  preferences?: Record<string, any>;
+}
+
+interface UserI extends Model {
+  data: UserDataI;
+}
+
+// Create form class
+class UserForm extends Form {
+  constructor(data: UserI) {
+    super(joiSchema, data);
+  }
+}
+
+// Create model class
+class User extends Model implements UserI {
+  data: UserDataI;
+
+  constructor(props: UserDataI = {}) {
+    super(userSchema);
+    this.data = props || {};
+  }
+}
+
+// Usage example
+async function createUser(env) {
+  const userData = { name: 'John Doe', email: 'john@example.com', preferences: { theme: 'dark' } };
+  const user = new User(userData);
+  const form = new UserForm(user);
+  
+  const createdUser = await User.create(form, env.DB);
+  console.log(createdUser.data.id); // Auto-generated UUID
+  console.log(createdUser.data.name); // 'John Doe'
+  console.log(createdUser.data.preferences.theme); // 'dark'
+}
+```
+
+## Model Definition
+
+Models in Model-One follow a specific pattern to ensure type safety and proper data encapsulation:
+
+```typescript
+// Define your data interface
+interface EntityDataI {
+  id?: string;
+  // Add your custom properties here
+  name?: string;
+  // etc...
+}
+
+// Define your model interface that extends the base Model
+interface EntityI extends Model {
+  data: EntityDataI;
+}
+
+// Create your model class
+class Entity extends Model implements EntityI {
+  data: EntityDataI;
+
+  constructor(props: EntityDataI = {}) {
+    super(entitySchema);
+    this.data = props || {};
+  }
+}
+```
+
+### Important Note on Data Access
+
+In Model-One v0.2.0 and above, all entity properties must be accessed through the `data` property:
+
+```typescript
+// Correct way to access properties
+const user = await User.findById(id, env.DB);
+if (user) {
+  console.log(user.data.name); // ✅ Correct
+  console.log(user.data.email); // ✅ Correct
+}
+
+// Incorrect way (will not work)
+console.log(user.name); // ❌ Incorrect
+console.log(user.email); // ❌ Incorrect
+```
+
+```sh
+yarn add model-one joi
+```
+
+## Schema Configuration
+
+The Schema class is used to define your database table structure:
+
+```typescript
+const entitySchema = new Schema({
+  table_name: 'entities',  // Name of the database table
+  columns: [
+    { name: 'id', type: 'string' },  // Primary key (UUID by default)
+    { name: 'title', type: 'string' },
+    { name: 'count', type: 'number' },
+    { name: 'is_active', type: 'boolean' },
+    { name: 'metadata', type: 'jsonb' },
+    { name: 'published_at', type: 'date' }
+  ],
+  timestamps: true,  // Adds created_at and updated_at columns
+  softDeletes: true  // Adds deleted_at column for soft deletes
+});
+```
+
+## Column Types and Constraints
+
+Model-One supports the following column types:
+
+| Type | JavaScript Type | Description |
+|------|----------------|-------------|
+| `string` | `string` | Text data |
+| `number` | `number` | Numeric data |
+| `boolean` | `boolean` | Boolean values (true/false) |
+| `date` | `Date` | Date and time values |
+| `jsonb` | `object` or `array` | JSON data that is automatically serialized/deserialized |
+
+## Form Validation
+
+Model-One uses Joi for form validation:
+
+```typescript
+import Joi from 'joi';
+import { Form } from 'model-one';
+
+// Define validation schema
+const joiSchema = Joi.object({
+  id: Joi.string(),
+  title: Joi.string().required().min(3).max(100),
+  count: Joi.number().integer().min(0),
+  is_active: Joi.boolean(),
+  metadata: Joi.object(),
+  published_at: Joi.date()
+});
+
+// Create form class
+class EntityForm extends Form {
+  constructor(data: EntityI) {
+    super(joiSchema, data);
+  }
+}
+
+// Usage
+const entity = new Entity({ title: 'Test' });
+const form = new EntityForm(entity);
+
+// Validation happens automatically when creating or updating
+const createdEntity = await Entity.create(form, env.DB);
+```
+
+## CRUD Operations
+
+Model-One provides the following CRUD operations:
+
+### Create
+
+```typescript
+// Create a new entity
+const entity = new Entity({ title: 'New Entity', count: 42 });
+const form = new EntityForm(entity);
+const createdEntity = await Entity.create(form, env.DB);
+
+// Access the created entity's data
+console.log(createdEntity.data.id); // Auto-generated UUID
+console.log(createdEntity.data.title); // 'New Entity'
+```
+
+### Read
+
+```typescript
+// Find by ID
+const entity = await Entity.findById('some-uuid', env.DB);
+if (entity) {
+  console.log(entity.data.title);
+}
+
+// Find by column value
+const entity = await Entity.findOne('title', 'New Entity', env.DB);
+if (entity) {
+  console.log(entity.data.count);
+}
+
+// Get all entities
+const allEntities = await Entity.all(env.DB);
+allEntities.forEach(entity => {
+  console.log(entity.data.title);
+});
+```
+
+### Update
+
+```typescript
+// Update an entity
+const updatedData = {
+  id: 'existing-uuid',  // Required for updates
+  title: 'Updated Title',
+  count: 100
+};
+const updatedEntity = await Entity.update(updatedData, env.DB);
+
+// Access the updated entity's data
+console.log(updatedEntity.data.title); // 'Updated Title'
+console.log(updatedEntity.data.updated_at); // Current timestamp
+```
+
+### Delete (Soft Delete)
+
+```typescript
+// Soft delete an entity
+await Entity.delete('entity-uuid', env.DB);
+
+// Entity will no longer be returned in queries
+const notFound = await Entity.findById('entity-uuid', env.DB);
+console.log(notFound); // null
+```
+
+## Raw SQL Queries
+
+For more complex operations, you can use raw SQL queries:
+
+```typescript
+// Execute a raw SQL query
+const { results } = await Entity.raw(
+  'SELECT * FROM entities WHERE count > 50 ORDER BY created_at DESC LIMIT 10',
+  env.DB
+);
+
+console.log(results); // Array of raw database results
+```
+
+## TypeScript Support
+
+Model-One is built with TypeScript and provides full type safety. To get the most out of it, define proper interfaces for your models:
+
+```typescript
+// Define your data interface
+interface EntityDataI {
+  id?: string;
+  title?: string;
+  count?: number;
+  is_active?: boolean;
+  metadata?: Record<string, any>;
+  published_at?: Date;
+  created_at?: Date;
+  updated_at?: Date;
+}
+
+// Define your model interface
+interface EntityI extends Model {
+  data: EntityDataI;
+}
+
+// Implement your model class
+class Entity extends Model implements EntityI {
+  data: EntityDataI;
+
+  constructor(props: EntityDataI = {}) {
+    super(entitySchema);
+    this.data = props || {};
+  }
+}
+```
+
+## Breaking Changes in v0.2.0
+
+### Data Property Access
+
+In v0.2.0, all entity properties must be accessed through the `data` property:
+
+```typescript
+// v0.1.x (no longer works)
+const user = await User.findById(id, env.DB);
+console.log(user.name); // ❌ Undefined
+
+// v0.2.0 and above
+const user = await User.findById(id, env.DB);
+console.log(user.data.name); // ✅ Works correctly
+```
+
+### Model Initialization
+
+Models now require proper initialization of the `data` property:
+
+```typescript
+// Correct initialization in v0.2.0
+class User extends Model implements UserI {
+  data: UserDataI;
+
+  constructor(props: UserDataI = {}) {
+    super(userSchema);
+    this.data = props || {}; // Initialize with empty object if props is undefined
+  }
+}
+```
 
 1. Create a new database.
 

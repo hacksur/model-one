@@ -67,6 +67,14 @@ export interface SchemaConfigI {
   softDeletes?: boolean;
 }
 
+/**
+ * Model data interface
+ */
+interface ModelDataI {
+  id?: string;
+  [key: string]: any;
+}
+
 class Form {
   schema: Joi.ObjectSchema<any>
   data: any
@@ -112,12 +120,14 @@ class Schema implements SchemaConfigI {
 }
 
 class Model {
-  id: string
+  id: string | null
   schema: SchemaConfigI
+  data: ModelDataI
   
-  constructor(schema?: any, props?: any) {
+  constructor(schema?: SchemaConfigI, props?: ModelDataI) {
     this.id = props?.id || null
-    this.schema = schema
+    this.schema = schema || {} as SchemaConfigI
+    this.data = props || {}
   }
 
   /**
@@ -251,6 +261,21 @@ class Model {
     return result;
   }
 
+  /**
+   * Creates a new instance of the Model class from raw data
+   */
+  private static createModelInstance(data: any): Model {
+    const instance = new this();
+    instance.id = data.id;
+    
+    // Copy all properties from data to the instance's data property
+    Object.keys(data).forEach(key => {
+      instance.data[key] = data[key];
+    });
+    
+    return instance;
+  }
+
   static async create({ data }: any, env: any) {
     const { schema } = new this();
     const { keys, values } = this.deserializeData(data, schema);
@@ -271,7 +296,10 @@ class Model {
     if (success) {
       // Filter out timestamps and soft delete fields unless needed
       const { deleted_at, created_at, updated_at, ...output } = results[0];
-      return this.serializeData(output, schema);
+      const serializedData = this.serializeData(output, schema);
+      
+      // Return a new Model instance with the serialized data
+      return this.createModelInstance(serializedData);
     } else {
       return NotFoundError();
     }
@@ -299,7 +327,10 @@ class Model {
     
     if (Boolean(results)) {
       const { deleted_at, created_at, updated_at, ...result } = results[0];
-      return this.serializeData(result, schema);
+      const serializedData = this.serializeData(result, schema);
+      
+      // Return a new Model instance with the serialized data
+      return this.createModelInstance(serializedData);
     }
   }
 
@@ -349,7 +380,10 @@ class Model {
     if (Boolean(results)) {
       return results.map((result: any) => {
         const { deleted_at, created_at, updated_at, ...data } = result;
-        return this.serializeData(data, schema);
+        const serializedData = this.serializeData(data, schema);
+        
+        // Return a new Model instance with the serialized data
+        return this.createModelInstance(serializedData);
       });
     }
   }
@@ -376,7 +410,10 @@ class Model {
         return results[0];
       } else {
         const { deleted_at, created_at, updated_at, ...data } = results[0];
-        return this.serializeData(data, schema);
+        const serializedData = this.serializeData(data, schema);
+        
+        // Return a new Model instance with the serialized data
+        return this.createModelInstance(serializedData);
       }
     } else {
       return NotFoundError();
@@ -406,7 +443,10 @@ class Model {
           return result;
         } else {
           const { deleted_at, created_at, updated_at, ...data } = result;
-          return this.serializeData(data, schema);
+          const serializedData = this.serializeData(data, schema);
+          
+          // Return a new Model instance with the serialized data
+          return this.createModelInstance(serializedData);
         }
       });
     } else {
@@ -436,7 +476,10 @@ class Model {
         return results[0];
       } else {
         const { deleted_at, created_at, updated_at, ...data } = results[0];
-        return this.serializeData(data, schema);
+        const serializedData = this.serializeData(data, schema);
+        
+        // Return a new Model instance with the serialized data
+        return this.createModelInstance(serializedData);
       }
     } else {
       return NotFoundError();
@@ -458,5 +501,6 @@ export {
   Form,
   Schema,
   Model,
-  NotFoundError
+  NotFoundError,
+  ModelDataI
 }
