@@ -1,20 +1,11 @@
 import test from "ava";
 import Joi from 'joi';
-import { createSQLiteDB } from '@miniflare/shared';
-import { D1Database, D1DatabaseAPI } from '@miniflare/d1';
+import { Miniflare } from 'miniflare';
 import { Model, Schema, type SchemaConfigI, Form } from '../lib';
 
 // Test database schema
 export const schema = [
-  `
-  CREATE TABLE users (
-    id text PRIMARY KEY,
-    name text,
-    languages text,
-    deleted_at datetime,
-    created_at datetime,
-    updated_at datetime
-  );`
+  `CREATE TABLE users (id text PRIMARY KEY, name text, languages text, deleted_at datetime, created_at datetime, updated_at datetime);`
 ];
 
 // Define validation schema for the form
@@ -62,35 +53,6 @@ class User extends Model implements UserI {
     super(userSchema);
     this.data = props || {};
   }
-
-  // // Static methods to ensure proper model initialization
-  // static async create(form: any, env: any) {
-  //   return super.create(form, env);
-  // }
-
-  // static async update(data: any, env: any) {
-  //   return super.update(data, env);
-  // }
-
-  // static async findById(id: string, env: any, complete: boolean = false) {
-  //   return super.findById(id, env, complete);
-  // }
-
-  // static async findOne(column: string, value: string, env: any) {
-  //   return super.findOne(column, value, env);
-  // }
-
-  // static async all(env: any) {
-  //   return super.all(env);
-  // }
-
-  // static async delete(id: string, env: any) {
-  //   return super.delete(id, env);
-  // }
-
-  // static async raw(query: string, env: any) {
-  //   return super.raw(query, env);
-  // }
 }
 
 // Helper function to create a user with the given data
@@ -102,13 +64,46 @@ async function createUser(data: UserDataI, binding: any): Promise<any> {
   return createdUser;
 }
 
-// Setup test database before each test
+// Store Miniflare instances to clean up later
+const miniflares: any[] = [];
+
 test.beforeEach(async (t) => {
-  const sqliteDb = await createSQLiteDB(':memory:');
-  const db = new D1Database(new D1DatabaseAPI(sqliteDb));
-  await db.batch(schema.map((item: string) => db.prepare(item)));
-  t.context = { db };
+  try {
+    // Create a Miniflare instance with D1
+    const mf = new Miniflare({
+      modules: true,
+      script: 'export default {};',
+      d1Databases: ['TEST_DB'],
+    });
+    
+    // Get the D1 database
+    const db = await mf.getD1Database('TEST_DB');
+    
+    // Create users table with simplified SQL syntax for Miniflare v4
+    await db.exec(schema[0].trim());
+        
+    // Store context for the test`
+    t.context = { db, mf };
+    
+    // Store instance for cleanup
+    miniflares.push(mf);
+    
+    console.log('✅ Test database initialized with users schema');
+  } catch (error) {
+    console.error('❌ Error in test setup:', error);
+    throw error;
+  }
 });
+
+// Cleanup Miniflare instances after tests
+test.after.always(() => {
+  for (const mf of miniflares) {
+    if (mf && typeof mf.dispose === 'function') {
+      mf.dispose();
+    }
+  }
+});
+
 
 // User CRUD Tests
 test('Create a user with basic data', async (t) => {
@@ -151,7 +146,7 @@ test('Create and update user with JSON data', async (t) => {
     languages: updatedLanguages
   };
   
-  const updatedUser = await User.update(updatedData, binding);
+  const updatedUser = await User.update({ data: updatedData }, binding);
   
   // Verify updated data
   t.truthy(updatedUser, 'Update should return a user');

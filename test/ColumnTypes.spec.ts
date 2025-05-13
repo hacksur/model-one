@@ -1,24 +1,11 @@
 import test from "ava";
 import Joi from 'joi';
-import { createSQLiteDB } from '@miniflare/shared';
-import { D1Database, D1DatabaseAPI } from '@miniflare/d1';
+import { Miniflare } from 'miniflare';
 import { Model, Schema, type SchemaConfigI, Form, type Column } from '../src';
 
 // Test database schema
 export const schema = [
-  `
-  CREATE TABLE advanced_entities (
-    id text PRIMARY KEY,
-    string_value text,
-    number_value real,
-    integer_value integer,
-    boolean_value integer,
-    json_value text,
-    date_value text,
-    deleted_at datetime,
-    created_at datetime,
-    updated_at datetime
-  );`
+  `CREATE TABLE advanced_entities (id text PRIMARY KEY, string_value text, number_value real, integer_value integer, boolean_value integer, json_value text, date_value text, deleted_at datetime, created_at datetime, updated_at datetime);`
 ];
 
 // Define column types for the schema
@@ -119,13 +106,47 @@ async function createEntity(data: AdvancedEntityDataI, binding: any): Promise<an
   return AdvancedEntity.create(form, binding);
 }
 
-// Setup test database before each test
+
+// Store Miniflare instances to clean up later
+const miniflares: any[] = [];
+
 test.beforeEach(async (t) => {
-  const sqliteDb = await createSQLiteDB(':memory:');
-  const db = new D1Database(new D1DatabaseAPI(sqliteDb));
-  await db.batch(schema.map((item: string) => db.prepare(item)));
-  t.context = { db };
+  try {
+    // Create a Miniflare instance with D1
+    const mf = new Miniflare({
+      modules: true,
+      script: 'export default {};',
+      d1Databases: ['TEST_DB'],
+    });
+    
+    // Get the D1 database
+    const db = await mf.getD1Database('TEST_DB');
+    
+    // Create users table with simplified SQL syntax for Miniflare v4
+    await db.exec(schema[0].trim());
+        
+    // Store context for the test`
+    t.context = { db, mf };
+    
+    // Store instance for cleanup
+    miniflares.push(mf);
+    
+    console.log('✅ Test database initialized with users schema');
+  } catch (error) {
+    console.error('❌ Error in test setup:', error);
+    throw error;
+  }
 });
+
+// Cleanup Miniflare instances after tests
+test.after.always(() => {
+  for (const mf of miniflares) {
+    if (mf && typeof mf.dispose === 'function') {
+      mf.dispose();
+    }
+  }
+});
+
 
 // Column Type Tests
 test('string - should store and retrieve string values correctly', async (t) => {
@@ -298,7 +319,7 @@ test('update - should update entities with all data types', async (t) => {
       date_value: new Date('2025-02-01')
     };
     
-    const result = await AdvancedEntity.update(updatedData, binding);
+    const result = await AdvancedEntity.update({ data: updatedData }, binding);
     t.truthy(result, 'Update should return a result');
     
     // Type guard to ensure we're working with the right type
