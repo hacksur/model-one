@@ -1,7 +1,10 @@
 import test from "ava";
 import Joi from 'joi';
 import { Miniflare } from 'miniflare';
-import { Model, Schema, type SchemaConfigI, Form } from '../lib';
+import { Model, Schema, type SchemaConfigI, Form } from '../src';
+
+// Helper function for delay
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Test database schema
 export const schema = [
@@ -32,6 +35,8 @@ interface UserDataI {
   id?: string;
   name?: string;
   languages?: string[];
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface UserI extends Model {
@@ -127,45 +132,60 @@ test('Create a user with JSON data (languages array)', async (t) => {
   t.true(Array.isArray(user.data.languages), 'Languages should be an array');
 });
 
-test('Create and update user with JSON data', async (t) => {
+test('Create and update user with JSON data using instance.update()', async (t) => {
   const { db: binding }: any = t.context;
   
-  // Create initial user
+  // Create initial user - this should be a full User instance now
   const initialLanguages = ['es', 'en'];
-  const user = await createUser({ name: 'John', languages: initialLanguages }, binding);
+  const userInstance = await createUser({ name: 'John', languages: initialLanguages }, binding) as User;
   
-  // Verify initial data
-  t.is(user.data.name, 'John');
-  t.deepEqual(user.data.languages, initialLanguages);
-  
-  // Update the user
+  // Verify initial data on the instance
+  t.truthy(userInstance, 'createUser should return a User instance.');
+  if (!userInstance) return t.fail('User instance not created.');
+
+  t.is(userInstance.data.name, 'John');
+  t.deepEqual(userInstance.data.languages, initialLanguages);
+  t.truthy(userInstance.id, 'User instance should have an ID.');
+  const originalCreatedAt = userInstance.data.created_at; // Assuming created_at is populated
+
+  // Introduce a delay to ensure updated_at can differ from created_at
+  await delay(1100); 
+
+  // Define changes for the update - no ID needed here for instance.update()
   const updatedLanguages = ['es', 'en', 'fr'];
-  const updatedData = {
-    id: user.data.id,
-    name: 'Mochis',
+  const changesToApply: Partial<UserDataI> = {
+    name: 'Mochis Deluxe',
     languages: updatedLanguages
   };
   
-  const updatedUser = await User.update({ data: updatedData }, binding);
+  // Call instance.update()
+  const updatedUser = await userInstance.update(changesToApply, binding);
   
-  // Verify updated data
-  t.truthy(updatedUser, 'Update should return a user');
-  if (updatedUser && typeof updatedUser === 'object') {
-    // Cast to any to access properties safely
-    const result: any = updatedUser;
-    
-    t.is(result.data.name, 'Mochis');
-    t.is(typeof result.data.languages, 'object');
-    t.deepEqual(result.data.languages, updatedLanguages);
-    
-    // Verify retrieval of updated user
-    const retrieved = await User.findById(user.data.id, binding);
-    t.not(retrieved, null);
-    if (retrieved) {
-      t.is(retrieved.data.name, 'Mochis');
-      t.deepEqual(retrieved.data.languages, updatedLanguages);
-    }
+  // 1. Verify the instance returned by update()
+  t.truthy(updatedUser, 'instance.update() should return the updated instance.');
+  if (!updatedUser) return t.fail('instance.update() did not return an instance.');
+  
+  t.is(updatedUser.data.name, 'Mochis Deluxe', 'Returned instance name should be updated.');
+  t.deepEqual(updatedUser.data.languages, updatedLanguages, 'Returned instance languages should be updated.');
+  t.truthy(updatedUser.data.updated_at, 'Returned instance should have updated_at timestamp.');
+  if (originalCreatedAt && updatedUser.data.updated_at) {
+    t.not(updatedUser.data.updated_at, originalCreatedAt, 'updated_at should be different from created_at.');
   }
+
+  // 2. Verify the original userInstance is also mutated
+  t.is(userInstance.data.name, 'Mochis Deluxe', 'Original instance name should reflect update.');
+  t.deepEqual(userInstance.data.languages, updatedLanguages, 'Original instance languages should reflect update.');
+  t.is(userInstance.data.updated_at, updatedUser.data.updated_at, 'Original instance updated_at should match returned instance.');
+
+  // 3. Verify retrieval of updated user from DB
+  const retrievedAfterUpdate = await User.findById(userInstance.id!, binding) as User;
+  t.truthy(retrievedAfterUpdate, 'Should be able to retrieve user after update.');
+  if (!retrievedAfterUpdate) return t.fail('Failed to retrieve user after update.');
+
+  t.is(retrievedAfterUpdate.data.name, 'Mochis Deluxe', 'Persisted name should be updated.');
+  t.deepEqual(retrievedAfterUpdate.data.languages, updatedLanguages, 'Persisted languages should be updated.');
+  t.is(retrievedAfterUpdate.data.created_at, originalCreatedAt, 'created_at should remain unchanged after update.');
+  t.is(retrievedAfterUpdate.data.updated_at, updatedUser.data.updated_at, 'Persisted updated_at should match.');
 });
 
 test('Find user by ID', async (t) => {
@@ -199,7 +219,7 @@ test('Delete a user (soft delete)', async (t) => {
   t.is(notFound, null, 'User should not be found after deletion');
   
   // Verify it still exists in DB by running a raw query that ignores deleted_at
-  const { results } = await User.raw(
+  const { results } = await User.query(
     `SELECT * FROM users WHERE id='${user.data.id}'`, 
     binding
   );

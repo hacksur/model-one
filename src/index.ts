@@ -136,8 +136,29 @@ class Model {
   
   constructor(schema?: SchemaConfigI, props?: ModelDataI) {
     this.id = props?.id || null
-    this.schema = schema || {} as SchemaConfigI
+    this.schema = schema || {} as SchemaConfigI // Ensure schema is initialized
     this.data = props || {}
+  }
+
+  async update(partialData: Partial<ModelDataI>, env: any): Promise<this | null> {
+    if (!this.data?.id) {
+      throw new ModelError('Instance data is missing an ID, cannot update.');
+    }
+
+    const updatePayload = { ...this.data, ...partialData };
+    const arg1 = { data: updatePayload };
+
+    const ModelCtor = this.constructor as typeof Model;
+    const resultFromStaticUpdate = await ModelCtor.update(arg1, env) as this | null;
+
+    if (resultFromStaticUpdate && resultFromStaticUpdate.data) {
+      this.data = { ...resultFromStaticUpdate.data }; 
+      this.id = resultFromStaticUpdate.data.id || this.id; 
+      return this;
+    } else {
+      console.error('Instance update failed: static update did not return expected data or failed.', resultFromStaticUpdate);
+      return null;
+    }
   }
 
   /**
@@ -165,7 +186,6 @@ class Model {
    */
   private static processValueForStorage(value: any, columnType: ColumnType): any {
     if (value === null || value === undefined) {
-      // For JSON fields, store null as 'null' string to ensure it's properly handled
       if (columnType === 'jsonb') {
         return 'null';
       }
@@ -198,7 +218,6 @@ class Model {
       case 'number':
         return Number(value);
       case 'jsonb':
-        // Handle null/empty string for JSON fields
         if (value === '' || value === 'null') {
           return null;
         }
@@ -213,18 +232,15 @@ class Model {
   private static deserializeData(data: any, schema: SchemaConfigI): any {
     const { id }: { id: string | null } = data;
     
-    // Creating a new record
     if (!Boolean(id)) {
       const keys: string[] = ['id'];
       const values: any[] = [`${crypto.randomUUID()}`];
       
-      // Process each column according to its type
       schema.columns.forEach((column) => {
         if (data[column.name] !== undefined) {
           keys.push(column.name);
           const processedValue = this.processValueForStorage(data[column.name], column.type);
           
-          // Handle different types for SQL statement
           if (processedValue === null) {
             values.push('NULL');
           } else if (typeof processedValue === 'number') {
@@ -237,22 +253,18 @@ class Model {
         }
       });
 
-      // Format values for SQL
       const formattedValues = values.map(v => {
         return v === 'NULL' ? v : `'${v}'`;
       }).join(", ");
 
       return { values: formattedValues, keys: keys.join(", ")};
     } 
-    // Updating an existing record
     else {
       const attributes: string[] = [];
       
       schema.columns.forEach((column) => {
-        // Special handling for explicit undefined/null values for JSON fields
         if (column.name === 'id') return;
         
-        // Check if the property exists in the data object, even if it's null or undefined
         if (Object.prototype.hasOwnProperty.call(data, column.name)) {
           const processedValue = this.processValueForStorage(data[column.name], column.type);
           
@@ -273,17 +285,14 @@ class Model {
   private static serializeData(data: any, schema: SchemaConfigI): any {
     const result = { ...data };
     
-    // Process each column according to its type
     schema.columns.forEach((column) => {
       if (data[column.name] !== undefined) {
         result[column.name] = this.processValueFromStorage(data[column.name], column.type);
       } else {
-        // Explicitly set undefined values to null for consistency
         result[column.name] = null;
       }
     });
     
-    // Final pass to ensure no undefined values remain
     Object.keys(result).forEach(key => {
       if (result[key] === undefined) {
         result[key] = null;
@@ -293,49 +302,28 @@ class Model {
     return result;
   }
 
-  /**
-   * Creates a new instance of the Model class from raw data
-   * @param data The data to create the model from
-   * @param includeSchema Whether to include schema information in the returned model (default: false)
-   * @returns A model instance with or without schema information
-   */
-  private static createModelInstance(data: any, includeSchema: boolean = false): any {
-    if (includeSchema) {
-      // Return full model with schema for internal use
-      const instance = new this();
-      instance.id = data.id;
-      
-      // Copy all properties from data to the instance's data property
-      Object.keys(data).forEach(key => {
-        instance.data[key] = data[key];
-      });
-      
-      return instance;
-    } else {
-      // Return a simplified model without schema for external use
-      // Ensure all undefined values are converted to null for consistency
-      const cleanData = { ...data };
-      Object.keys(cleanData).forEach(key => {
-        if (cleanData[key] === undefined) {
-          cleanData[key] = null;
-        }
-      });
-      
-      return {
-        id: data.id,
-        data: cleanData
-      };
+  private static createModelInstance(data: any, schemaForInstance: SchemaConfigI): any {
+    const instance = new this(schemaForInstance);
+    instance.id = data.id; 
+
+    instance.data = {};
+    Object.keys(data).forEach(key => {
+      instance.data[key] = data[key];
+    });
+    if (data.id) {
+      instance.data.id = data.id; 
     }
+
+    return instance;
   }
 
   static async create({ data }: any, env: any) {
-    const { schema } = new this();
+    const { schema } = new this(); 
     const { keys, values } = this.deserializeData(data, schema);
     
     let query = `INSERT INTO ${schema.table_name} (${keys}`;
     let valuesPart = `VALUES(${values}`;
     
-    // Add timestamps if enabled
     if (schema.timestamps) {
       query += `, created_at, updated_at`;
       valuesPart += `, datetime('now'), datetime('now')`;
@@ -345,15 +333,13 @@ class Model {
     
     const { results, success} = await env.prepare(query).all();
     
-    if (success) {
-      // Filter out timestamps and soft delete fields unless needed
-      const { deleted_at, created_at, updated_at, ...output } = results[0];
-      const serializedData = this.serializeData(output, schema);
-      
-      // Return a new Model instance with the serialized data
-      return this.createModelInstance(serializedData, false);
+    if (success && results && results[0]) {
+      const dbRecord = { ...results[0] }; 
+      const serializedData = this.serializeData(dbRecord, schema);
+      return this.createModelInstance(serializedData, schema); 
     } else {
-      return NotFoundError();
+      console.error('Create operation failed or returned no results.');
+      return null; 
     }
   }
 
@@ -361,12 +347,21 @@ class Model {
     const { schema } = new this();
     const { id } = data;
     
-    if (!Boolean(id)) return { message: 'No ID present for update.'};
+    if (!Boolean(id)) { 
+      console.error('Update failed: No ID present in data.');
+      return null; 
+    }
     
     const { attributes } = this.deserializeData(data, schema);
+    if (!attributes || attributes.length === 0) {
+      console.warn('Update called with no attributes to update for ID:', id);
+      // Return the existing record as a full model instance if no actual changes are made.
+      // 'complete' should be false (or omitted) to get a model instance.
+      return this.findById(id, env, false); // Corrected: pass false for 'complete'
+    }
+
     let query = `UPDATE ${schema.table_name} SET ${attributes}`;
     
-    // Add updated_at timestamp if enabled
     if (schema.timestamps) {
       query += `, updated_at = datetime('now')`;
     }
@@ -375,14 +370,13 @@ class Model {
     
     const { results, success} = await env.prepare(query).all();
     
-    if (!success) return;
-    
-    if (Boolean(results)) {
-      const { deleted_at, created_at, updated_at, ...result } = results[0];
-      const serializedData = this.serializeData(result, schema);
-      
-      // Return a new Model instance with the serialized data
-      return this.createModelInstance(serializedData, false);
+    if (success && results && results[0]) {
+      const dbRecord = { ...results[0] }; 
+      const serializedData = this.serializeData(dbRecord, schema);
+      return this.createModelInstance(serializedData, schema); 
+    } else {
+      console.error(`Update failed for ID ${id} or record not found.`);
+      return null;
     }
   }
 
@@ -391,7 +385,6 @@ class Model {
     
     if (!Boolean(id)) return { message: 'ID is missing.'};
     
-    // Use soft delete if enabled
     if (schema.softDeletes) {
       const query = `UPDATE ${schema.table_name} 
                     SET deleted_at = datetime('now')
@@ -402,7 +395,6 @@ class Model {
         { message: `The ID ${id} from table "${schema.table_name}" has been soft deleted.` }
         : { message: `The ID ${id} has not been found at table "${schema.table_name}"` };
     } 
-    // Otherwise perform hard delete
     else {
       const query = `DELETE FROM ${schema.table_name} WHERE id='${id}';`;
       const { success } = await env.prepare(query).all();
@@ -413,23 +405,15 @@ class Model {
     }
   }
   
-  /**
-   * Restores a soft-deleted record by setting deleted_at to NULL
-   * @param id The ID of the record to restore
-   * @param env The database environment
-   * @returns A message indicating success or failure
-   */
   static async restore(id: string, env: any) {
     const { schema } = new this();
     
     if (!Boolean(id)) return { message: 'ID is missing.'};
     
-    // Only proceed if soft deletes are enabled
     if (!schema.softDeletes) {
       return { message: `Soft deletes are not enabled for table "${schema.table_name}"` };
     }
     
-    // Set deleted_at to NULL to restore the record
     const query = `UPDATE ${schema.table_name} 
                   SET deleted_at = NULL
                   WHERE id='${id}' RETURNING *;`;
@@ -439,24 +423,21 @@ class Model {
       return { message: `The ID ${id} has not been found at table "${schema.table_name}"` };
     }
     
-    // Process the restored record
-    const { deleted_at, created_at, updated_at, ...result } = results[0];
-    const serializedData = this.serializeData(result, schema);
+    const dbRecord = { ...results[0] }; 
+    const serializedData = this.serializeData(dbRecord, schema);
     
-    // Return the restored record
     return {
       message: `The ID ${id} from table "${schema.table_name}" has been successfully restored.`,
-      data: this.createModelInstance(serializedData, false)
+      data: this.createModelInstance(serializedData, schema) 
     };
   }
 
-  static async all(env: any) {
+  static async all(env: any, includeDeleted?: Boolean) { 
     const { schema } = new this();
     
     let query = `SELECT * FROM ${schema.table_name}`;
     
-    // Skip soft-deleted records if enabled
-    if (schema.softDeletes) {
+    if (schema.softDeletes && !includeDeleted) {
       query += ` WHERE deleted_at IS NULL`;
     }
     
@@ -464,26 +445,24 @@ class Model {
     
     const { results, success} = await env.prepare(query).all();
     
-    if(!success) return;
+    if(!success) return [];
     
-    if (Boolean(results)) {
+    if (results && results.length > 0) {
       return results.map((result: any) => {
-        const { deleted_at, created_at, updated_at, ...data } = result;
-        const serializedData = this.serializeData(data, schema);
-        
-        // Return a new Model instance with the serialized data
-        return this.createModelInstance(serializedData, false);
+        const dbRecord = { ...result }; 
+        const serializedData = this.serializeData(dbRecord, schema);
+        return this.createModelInstance(serializedData, schema); 
       });
+    } else {
+      return [];
     }
   }
 
-  // Find one record by column and value
   static async findOne(column: string, value: string, env: any, complete?: Boolean, includeDeleted?: Boolean) {
     const { schema } = new this();
     
     let query = `SELECT * FROM ${schema.table_name} WHERE ${column}='${value}'`;
     
-    // Skip soft-deleted records if enabled and not explicitly including deleted records
     if (schema.softDeletes && !includeDeleted) {
       query += ` AND deleted_at IS NULL`;
     }
@@ -492,30 +471,24 @@ class Model {
     
     const { results, success} = await env.prepare(query).all();
     
-    if (!success) return;
+    if (!success || !results || results.length === 0) {
+        return null;
+    }
     
-    if (Boolean(results[0])) {
-      if (complete) {
-        return results[0];
-      } else {
-        const { deleted_at, created_at, updated_at, ...data } = results[0];
-        const serializedData = this.serializeData(data, schema);
-        
-        // Return a new Model instance with the serialized data
-        return this.createModelInstance(serializedData, false);
-      }
+    if (complete) { 
+      return results[0]; 
     } else {
-      return NotFoundError();
+      const dbRecord = { ...results[0] }; 
+      const serializedData = this.serializeData(dbRecord, schema);
+      return this.createModelInstance(serializedData, schema); 
     }
   }
 
-  // Find records by column and value
   static async findBy(column: string, value: string, env: any, complete?: Boolean, includeDeleted?: Boolean) {
     const { schema } = new this();
     
     let query = `SELECT * FROM ${schema.table_name} WHERE ${column}='${value}'`;
     
-    // Skip soft-deleted records if enabled and not explicitly including deleted records
     if (schema.softDeletes && !includeDeleted) {
       query += ` AND deleted_at IS NULL`;
     }
@@ -523,69 +496,53 @@ class Model {
     query += `;`;
     
     const { results, success } = await env.prepare(query).all();
-    
-    if (!success) return;
-    
-    if (Boolean(results)) {
-      return results.map((result: any) => {
-        if (complete) {
-          return result;
-        } else {
-          const { deleted_at, created_at, updated_at, ...data } = result;
-          const serializedData = this.serializeData(data, schema);
-          
-          // Return a new Model instance with the serialized data
-          return this.createModelInstance(serializedData, false);
-        }
-      });
-    } else {
-      return NotFoundError();
-    }
+
+    if (!success || !results) return [];
+
+    return results.map((result: any) => {
+      if (complete) { 
+        return result;
+      } else {
+        const dbRecord = { ...result }; 
+        const serializedData = this.serializeData(dbRecord, schema);
+        return this.createModelInstance(serializedData, schema); 
+      }
+    }).filter((p:any) => p !== null); 
   }
 
-  // Find by ID
   static async findById(id: string, env: any, complete?: Boolean, includeDeleted?: Boolean) {
-    const { schema } = new this();
+    const { schema } = new this(); 
     
     let query = `SELECT * FROM ${schema.table_name} WHERE id='${id}'`;
     
-    // Skip soft-deleted records if enabled and not explicitly including deleted records
     if (schema.softDeletes && !includeDeleted) {
       query += ` AND deleted_at IS NULL`;
     }
     
-    query += `;`;
+    query += ` LIMIT 1;`; 
     
     const { results, success} = await env.prepare(query).all();
     
-    if (!success) return;
+    if (!success || !results || results.length === 0) {
+        return null;
+    }
     
-    if (Boolean(results[0])) {
-      if (complete) {
-        return results[0];
-      } else {
-        const { deleted_at, created_at, updated_at, ...data } = results[0];
-        const serializedData = this.serializeData(data, schema);
-        
-        // Return a new Model instance with the serialized data
-        return this.createModelInstance(serializedData, false);
-      }
+    if (complete) { 
+      return results[0];
     } else {
-      return NotFoundError();
+      const dbRecord = { ...results[0] }; 
+      const serializedData = this.serializeData(dbRecord, schema);
+      return this.createModelInstance(serializedData, schema); 
     }
   }
 
-  /**
-   * Execute raw SQL query
-   */
-  static async raw(query: string, env: any) {
-    const { results, success } = await env.prepare(query).all();
+  static async query(sql: string, env: any, params?: any[]) {
+    const { results, success } = await env.prepare(sql, params).all();
     if (!success) return { success: false, message: 'Query failed' };
     return { success: true, results };
   }
 }
 
-// Export the classes and interfaces
 export {
   Form,
   Schema,

@@ -6,7 +6,7 @@
 [![license](https://img.shields.io/github/license/hacksur/model-one.svg)](LICENSE)
 [![npm downloads](https://img.shields.io/npm/dt/model-one.svg)](https://npm.im/model-one)
 
-A powerful ORM-like library for Cloudflare Workers D1 with validation support via Joi, inspired by [reform](https://github.com/trailblazer/reform).
+A powerful ORM-like library (v0.3.0) for Cloudflare Workers D1 with validation support via Joi.
 
 ## Features
 

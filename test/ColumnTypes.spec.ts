@@ -94,8 +94,8 @@ class AdvancedEntity extends Model implements AdvancedEntityI {
     return super.delete(id, env);
   }
 
-  static async raw(query: string, env: any) {
-    return super.raw(query, env);
+  static async query(query: string, env: any) {
+    return super.query(query, env);
   }
 }
 
@@ -413,7 +413,7 @@ test('delete - should soft delete entities and hide them from queries', async (t
     t.is(notFound, null);
     
     // Verify it still exists in DB by running a raw query that ignores deleted_at
-    const { results } = await AdvancedEntity.raw(
+    const { results } = await AdvancedEntity.query(
       `SELECT * FROM advanced_entities WHERE id='${entity.data.id}'`, 
       binding
     );
@@ -454,7 +454,7 @@ test('all - should retrieve all non-deleted entities', async (t) => {
   t.deepEqual(remainingValues.sort(), ['Entity 2', 'Entity 3', 'Entity 4'].sort());
 });
 
-test('raw - should execute raw SQL queries correctly', async (t) => {
+test('query - should execute raw SQL queries correctly', async (t) => {
   const { db: binding }: any = t.context;
   
   // Create test entities
@@ -474,7 +474,7 @@ test('raw - should execute raw SQL queries correctly', async (t) => {
   }, binding);
   
   // Run a raw query with a WHERE clause
-  const { success, results } = await AdvancedEntity.raw(
+  const { success, results } = await AdvancedEntity.query(
     `SELECT * FROM advanced_entities WHERE number_value = 999`, 
     binding
   );

@@ -73,6 +73,7 @@ declare class Model {
     schema: SchemaConfigI;
     data: ModelDataI;
     constructor(schema?: SchemaConfigI, props?: ModelDataI);
+    update(partialData: Partial<ModelDataI>, env: any): Promise<this | null>;
     /**
      * Maps JavaScript types to SQLite types
      */
@@ -87,24 +88,12 @@ declare class Model {
     private static processValueFromStorage;
     private static deserializeData;
     private static serializeData;
-    /**
-     * Creates a new instance of the Model class from raw data
-     * @param data The data to create the model from
-     * @param includeSchema Whether to include schema information in the returned model (default: false)
-     * @returns A model instance with or without schema information
-     */
     private static createModelInstance;
     static create({ data }: any, env: any): Promise<any>;
     static update({ data }: any, env: any): Promise<any>;
     static delete(id: string, env: any): Promise<{
         message: string;
     }>;
-    /**
-     * Restores a soft-deleted record by setting deleted_at to NULL
-     * @param id The ID of the record to restore
-     * @param env The database environment
-     * @returns A message indicating success or failure
-     */
     static restore(id: string, env: any): Promise<{
         message: string;
         data?: undefined;
@@ -112,14 +101,11 @@ declare class Model {
         message: string;
         data: any;
     }>;
-    static all(env: any): Promise<any>;
+    static all(env: any, includeDeleted?: Boolean): Promise<any>;
     static findOne(column: string, value: string, env: any, complete?: Boolean, includeDeleted?: Boolean): Promise<any>;
     static findBy(column: string, value: string, env: any, complete?: Boolean, includeDeleted?: Boolean): Promise<any>;
     static findById(id: string, env: any, complete?: Boolean, includeDeleted?: Boolean): Promise<any>;
-    /**
-     * Execute raw SQL query
-     */
-    static raw(query: string, env: any): Promise<{
+    static query(sql: string, env: any, params?: any[]): Promise<{
         success: boolean;
         message: string;
         results?: undefined;
