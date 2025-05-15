@@ -6,7 +6,9 @@ declare class ModelError extends Error {
 }
 export type SQLiteType = 'TEXT' | 'INTEGER' | 'REAL' | 'NUMERIC' | 'BLOB' | 'BOOLEAN' | 'TIMESTAMP' | 'DATE';
 /**
- * Column definition for database tables mapped to JavaScript types
+ * Describes a single column within a database table for the ORM.
+ * This definition is used by the Model to understand data types,
+ * map data to/from the database, and generate validation schemas (e.g., via `getValidationSchema()`).
  */
 export type ColumnType = 'string' | 'number' | 'boolean' | 'jsonb' | 'date';
 /**
@@ -21,24 +23,73 @@ export interface Constraint {
     value?: string | number | boolean;
 }
 /**
- * Column definition for database tables
+ * Describes a single column within a database table for the ORM.
+ * This definition is used by the Model to understand data types,
+ * map data to/from the database, and generate validation schemas (e.g., via `getValidationSchema()`).
  */
 export interface Column {
+    /** The name of the column in the database table. */
     name: string;
+    /**
+     * The JavaScript/TypeScript type this column should be mapped to in the application code
+     * (e.g., 'string', 'number', 'boolean', 'Date', 'Object' for JSON).
+     * This is typically defined using the `ColumnType` enum or a similar type definition.
+     */
     type: ColumnType;
+    /**
+     * The underlying SQLite data type for this column (e.g., 'TEXT', 'INTEGER', 'REAL', 'BLOB').
+     * This can be used by the ORM for type casting or if it assists in DDL generation.
+     * However, DDL for specific constraints (like UNIQUE, CHECK) is generally managed
+     * separately from this schema property when creating tables.
+     */
     sqliteType?: SQLiteType;
+    /**
+     * Indicates if the column is required (i.e., cannot be null).
+     * Primarily used to generate validation rules (e.g., making a field mandatory in Joi schemas).
+     * While this could inform a `NOT NULL` DDL property if `model-one` handles table creation,
+     * this schema property's main effect is on application-level validation.
+     */
     required?: boolean;
+    /**
+     * Defines specific constraints or rules for the column, intended for ORM or application-level logic.
+     * These are primarily used to generate validation rules (e.g., for Joi schemas via `getValidationSchema()`).
+     * IMPORTANT: These `constraints` typically DO NOT directly translate into SQL DDL
+     * constraints (like `UNIQUE`, `CHECK`, or `FOREIGN KEY`) automatically managed by `model-one`.
+     * Such database-level constraints should usually be defined within the `CREATE TABLE` SQL statement.
+     */
     constraints?: Constraint[];
 }
 type Columns = Column[];
 /**
- * Schema configuration interface
+ * Defines the structure and properties of a database table for a Model.
+ * This configuration is the blueprint used by a Model to interact with the database,
+ * manage data serialization/deserialization, and generate validation schemas.
+ * It dictates how the Model interprets and handles the table's data and structure.
  */
 export interface SchemaConfigI {
+    /** The actual name of the database table (e.g., 'users', 'products'). */
     table_name: string;
+    /** An array of `Column` definitions describing each column in the table. */
     columns: Columns;
+    /**
+     * A list of column names (or sets of column names for composite uniques) that should hold unique values.
+     * This is primarily leveraged for generating application-level validation logic
+     * (e.g., informing uniqueness checks in Joi schemas or custom validation routines within the ORM).
+     * IMPORTANT: This `uniques` property typically DOES NOT directly create SQL `UNIQUE` constraints
+     * on the database table through `model-one`. Database-level unique constraints should generally be
+     * defined within the `CREATE TABLE` SQL statement.
+     */
     uniques?: string[];
+    /**
+     * If true, the Model will automatically manage `created_at` and `updated_at` timestamp columns.
+     * These columns are typically of a DATETIME or TIMESTAMP compatible type and are updated by the ORM.
+     */
     timestamps?: boolean;
+    /**
+     * If true, the Model will employ a soft-delete strategy, usually by managing a `deleted_at` column.
+     * Records are marked as deleted (by setting `deleted_at`) rather than being physically removed,
+     * allowing for potential recovery or historical tracking.
+     */
     softDeletes?: boolean;
 }
 /**
