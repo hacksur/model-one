@@ -1,7 +1,7 @@
 {
   "name": "model-one",
   "description": "Model for D1",
-  "version": "0.3.0-2548d125f281",
+  "version": "0.3.0-64111941a3bb",
   "main": "./lib/index.js",
   "typings": "./lib/index.d.ts",
   "repository": {
