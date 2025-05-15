@@ -172,5 +172,16 @@ declare class Model {
         results: any;
         message?: undefined;
     }>;
+    /**
+     * Saves the current model instance to the database.
+     * If the instance has an ID (from `this.id` or `this.data.id`), it dispatches to the static `update()` method.
+     * Otherwise, it dispatches to the static `create()` method.
+     * The instance's `data` and `id` properties are updated with the result from the database operation.
+     * @param env - The database environment/connection object.
+     * @returns {Promise<this | null>} A promise that resolves to the current instance (this) after being updated,
+     *                                or null if the operation fails or returns no data.
+     * @throws {ModelError} Can be thrown by underlying create/update operations (e.g., validation).
+     */
+    save(env: any): Promise<this | null>;
 }
 export { Form, Schema, Model, NotFoundError, ModelDataI, ModelError };

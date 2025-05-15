@@ -229,7 +229,6 @@ test('Delete a user (soft delete)', async (t) => {
   t.truthy(results[0].deleted_at, 'User should have deleted_at timestamp set');
 });
 
-
 // Instance Delete Method Tests
 test('Instance can call delete() successfully (soft delete)', async (t) => {
   const { db: binding }: any = t.context;
@@ -337,4 +336,140 @@ test('Find one user by name', async (t) => {
   const foundUser = await User.findOne('name', name, binding);
   t.truthy(foundUser, 'User should be found.');
   t.is(foundUser!.data.name, name, 'Found user name should match.');
+});
+
+// --- Test Suite for Model.instance.save() ---
+test.serial('instance.save() correctly dispatches to create() for new records and updates instance', async (t) => {
+  const { db: binding }: any = t.context;
+  const initialName = 'SaveCreate Test User';
+  const initialLanguages = ['typescript', 'javascript'];
+
+  const userInstance = new User({ name: initialName, languages: initialLanguages });
+  console.log('[Test: save->create] Initial userInstance.id:', userInstance.id);
+  console.log('[Test: save->create] Initial userInstance.data:', JSON.stringify(userInstance.data));
+
+  // Call save() on the new instance
+  const savedUserInstance = await userInstance.save(binding);
+  console.log('[Test: save->create] userInstance.save() returned:', JSON.stringify(savedUserInstance));
+
+  // Log state of the original instance (it should be updated)
+  console.log('[Test: save->create] Original userInstance.id after save:', userInstance.id);
+  console.log('[Test: save->create] Original userInstance.data after save:', JSON.stringify(userInstance.data));
+  console.log('[Test: save->create] Returned savedUserInstance.id after save:', savedUserInstance?.id);
+  console.log('[Test: save->create] Returned savedUserInstance.data after save:', JSON.stringify(savedUserInstance?.data));
+
+  // --- EXPECTED CONSOLE OUTPUT (for manual verification before assertions) ---
+  console.log(`[Test: save->create] EXPECTED: savedUserInstance to be the same object as userInstance.`);
+  console.log(`[Test: save->create] EXPECTED: userInstance.id to be a non-null string (newly created ID).`);
+  console.log(`[Test: save->create] EXPECTED: userInstance.data.name to be '${initialName}'.`);
+  console.log(`[Test: save->create] EXPECTED: userInstance.data.languages to be ${JSON.stringify(initialLanguages)}.`);
+  console.log(`[Test: save->create] EXPECTED: userInstance.data.created_at to be a non-null string.`);
+  console.log(`[Test: save->create] EXPECTED: userInstance.data.updated_at to be a non-null string.`);
+
+  // Assertions
+  t.truthy(savedUserInstance, 'save() should return the instance for a new record.');
+  t.is(savedUserInstance, userInstance, 'save() should return the same instance (this).');
+  t.truthy(userInstance.id, 'Instance ID (userInstance.id) should be populated after save (create).');
+  t.is(userInstance.data.name, initialName, 'Instance data.name should be correct after save (create).');
+  t.deepEqual(userInstance.data.languages, initialLanguages, 'Instance data.languages should be correct after save (create).');
+  t.truthy(userInstance.data.created_at, 'created_at should be populated on userInstance.data.');
+  t.truthy(userInstance.data.updated_at, 'updated_at should be populated on userInstance.data.');
+
+  // Verify data in DB
+  if (userInstance.id) {
+    const retrievedUser = await User.findById(userInstance.id, binding);
+    console.log('[Test: save->create] Retrieved user from DB by ID:', JSON.stringify(retrievedUser));
+    t.truthy(retrievedUser, 'User should be findable in DB after save (create).');
+    if (retrievedUser) {
+      t.is(retrievedUser.data.name, initialName, 'DB: Name should match.');
+      t.deepEqual(retrievedUser.data.languages, initialLanguages, 'DB: Languages should match.');
+      t.is(retrievedUser.data.id, userInstance.id, 'DB: ID should match.');
+    }
+  } else {
+    console.error('[Test: save->create] CRITICAL: userInstance.id is not set after save, cannot verify DB state.');
+    t.fail('User ID not set after save, cannot verify DB state.');
+  }
+  t.pass('Create test finished. Review logs.');
+});
+
+test.serial('instance.save() correctly dispatches to update() for existing records and updates instance', async (t) => {
+  const { db: binding }: any = t.context;
+  const initialName = 'SaveUpdate Test User Initial';
+  const initialLanguages = ['go', 'python'];
+
+  // Step 1: Create an initial user (can use .save() for this as it's tested above)
+  const userInstance = new User({ name: initialName, languages: initialLanguages });
+  console.log('[Test: save->update] Before initial save - userInstance.id:', userInstance.id);
+  console.log('[Test: save->update] Before initial save - userInstance.data:', JSON.stringify(userInstance.data));
+  await userInstance.save(binding); // Create the record
+
+  const originalId = userInstance.id;
+  const originalCreatedAt = userInstance.data.created_at;
+  console.log('[Test: save->update] After initial save (create) - userInstance.id:', originalId);
+  console.log('[Test: save->update] After initial save (create) - userInstance.data:', JSON.stringify(userInstance.data));
+
+  t.truthy(originalId, 'Pre-condition: User must have an ID after initial save.');
+  if (!originalId) {
+    console.error('[Test: save->update] CRITICAL: Failed to create user for update test.');
+    return t.fail('Failed to create user for update test.');
+  }
+
+  // Introduce a delay to ensure updated_at can differ from created_at if system is too fast
+  await delay(1100);
+
+  // Step 2: Modify the instance's data
+  const updatedName = 'SaveUpdate Test User Updated';
+  const updatedLanguages = ['go', 'rust', 'c++'];
+  userInstance.data.name = updatedName;
+  userInstance.data.languages = updatedLanguages;
+  // DO NOT change userInstance.id here, it should remain the same for an update.
+  console.log('[Test: save->update] Instance data before calling save() for update - userInstance.id:', userInstance.id);
+  console.log('[Test: save->update] Instance data before calling save() for update - userInstance.data:', JSON.stringify(userInstance.data));
+
+  // Step 3: Call save() on the existing, modified instance
+  const savedUserInstance = await userInstance.save(binding);
+  console.log('[Test: save->update] userInstance.save() returned for update:', JSON.stringify(savedUserInstance));
+
+  // Log state of the original instance (it should be updated)
+  console.log('[Test: save->update] Original userInstance.id after save (update):', userInstance.id);
+  console.log('[Test: save->update] Original userInstance.data after save (update):', JSON.stringify(userInstance.data));
+  console.log('[Test: save->update] Returned savedUserInstance.id after save (update):', savedUserInstance?.id);
+  console.log('[Test: save->update] Returned savedUserInstance.data after save (update):', JSON.stringify(savedUserInstance?.data));
+
+  // --- EXPECTED CONSOLE OUTPUT (for manual verification before assertions) ---
+  console.log(`[Test: save->update] EXPECTED: savedUserInstance to be the same object as userInstance.`);
+  console.log(`[Test: save->update] EXPECTED: userInstance.id to be '${originalId}' (ID should not change on update).`);
+  console.log(`[Test: save->update] EXPECTED: userInstance.data.name to be '${updatedName}'.`);
+  console.log(`[Test: save->update] EXPECTED: userInstance.data.languages to be ${JSON.stringify(updatedLanguages)}.`);
+  console.log(`[Test: save->update] EXPECTED: userInstance.data.created_at to be '${originalCreatedAt}' (created_at should not change).`);
+  console.log(`[Test: save->update] EXPECTED: userInstance.data.updated_at to be a new timestamp, different from created_at.`);
+
+  // Assertions
+  t.truthy(savedUserInstance, 'save() should return the instance for an update.');
+  t.is(savedUserInstance, userInstance, 'save() should return the same instance (this) for update.');
+  t.is(userInstance.id, originalId, 'Instance ID (userInstance.id) should remain the same after save (update).');
+  t.is(userInstance.data.name, updatedName, 'Instance data.name should be updated.');
+  t.deepEqual(userInstance.data.languages, updatedLanguages, 'Instance data.languages should be updated.');
+  t.is(userInstance.data.created_at, originalCreatedAt, 'created_at should not change on update.');
+  t.truthy(userInstance.data.updated_at, 'updated_at should be populated on userInstance.data.');
+  if (originalCreatedAt && userInstance.data.updated_at) {
+    t.not(userInstance.data.updated_at, originalCreatedAt, 'updated_at should be different from original created_at.');
+  }
+
+  // Verify data in DB
+  if (userInstance.id) {
+    const retrievedUser = await User.findById(userInstance.id, binding);
+    console.log('[Test: save->update] Retrieved user from DB by ID:', JSON.stringify(retrievedUser));
+    t.truthy(retrievedUser, 'User should be findable in DB after save (update).');
+    if (retrievedUser) {
+      t.is(retrievedUser.data.name, updatedName, 'DB: Name should be updated.');
+      t.deepEqual(retrievedUser.data.languages, updatedLanguages, 'DB: Languages should be updated.');
+      t.is(retrievedUser.data.id, originalId, 'DB: ID should remain the same.');
+      t.is(retrievedUser.data.created_at, originalCreatedAt, 'DB: created_at should remain the same.');
+    }
+  } else {
+    console.error('[Test: save->update] CRITICAL: userInstance.id is not set, cannot verify DB state for update.');
+    t.fail('User ID not set, cannot verify DB state for update.');
+  }
+  t.pass('Update test finished. Review logs.');
 });

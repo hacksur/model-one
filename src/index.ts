@@ -598,6 +598,68 @@ class Model {
     if (!success) return { success: false, message: 'Query failed' };
     return { success: true, results };
   }
+
+  /**
+   * Saves the current model instance to the database.
+   * If the instance has an ID (from `this.id` or `this.data.id`), it dispatches to the static `update()` method.
+   * Otherwise, it dispatches to the static `create()` method.
+   * The instance's `data` and `id` properties are updated with the result from the database operation.
+   * @param env - The database environment/connection object.
+   * @returns {Promise<this | null>} A promise that resolves to the current instance (this) after being updated, 
+   *                                or null if the operation fails or returns no data.
+   * @throws {ModelError} Can be thrown by underlying create/update operations (e.g., validation).
+   */
+  async save(env: any): Promise<this | null> {
+    console.log('[Model.save] Input this.id:', this.id);
+    console.log('[Model.save] Input this.data:', JSON.stringify(this.data));
+
+    const ModelCtor = this.constructor as typeof Model;
+
+    // Ensure this.data has the most current ID if this.id is set, and this.id is primary
+    if (this.id && (!this.data.id || this.data.id !== this.id)) {
+      console.log('[Model.save] Syncing this.data.id from this.id.');
+      this.data.id = this.id;
+    }
+    
+    // Prepare the payload. Assumes static create/update can handle { data: ModelDataI }
+    const payload = { data: { ...this.data } }; // Use a shallow copy of data
+    console.log('[Model.save] Payload for static method:', JSON.stringify(payload));
+
+    let resultInstance: Model | null = null;
+    let operationType: 'create' | 'update' | 'none' = 'none';
+
+    if (this.data.id) { // ID exists, dispatch to static update
+      operationType = 'update';
+      console.log(`[Model.save] Instance has ID ${this.data.id}. Calling static update.`);
+      resultInstance = await ModelCtor.update(payload, env);
+    } else { // No ID, dispatch to static create
+      operationType = 'create';
+      console.log('[Model.save] Instance has no ID. Calling static create.');
+      // Ensure no 'id' field is accidentally sent if it's null/undefined in this.data,
+      // as static create should generate the ID.
+      if (payload.data.hasOwnProperty('id') && (payload.data.id === null || payload.data.id === undefined)) {
+        console.log('[Model.save] Removing null/undefined id from create payload.');
+        delete payload.data.id;
+      }
+      resultInstance = await ModelCtor.create(payload, env);
+    }
+    
+    console.log(`[Model.save] Result from static ${operationType}:`, JSON.stringify(resultInstance));
+
+    if (resultInstance && resultInstance.data) {
+      console.log('[Model.save] Operation successful. Syncing instance data with result.');
+      // Sync current instance's data and id with the returned data
+      this.data = { ...resultInstance.data }; // Update internal data
+      this.id = resultInstance.data.id || null; // Update internal id
+      
+      console.log('[Model.save] Synced this.id:', this.id);
+      console.log('[Model.save] Synced this.data:', JSON.stringify(this.data));
+      return this; // Return the current, updated instance
+    } else {
+      console.error(`[Model.save] Static ${operationType} operation failed or returned no data.`);
+      return null;
+    }
+  }
 }
 
 export {
