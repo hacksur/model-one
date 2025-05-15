@@ -154,13 +154,13 @@ In Model-One v0.2.0 and above, all entity properties must be accessed through th
 // Correct way to access properties
 const user = await User.findById(id, env.DB);
 if (user) {
-  console.log(user.data.name); // ✅ Correct
-  console.log(user.data.email); // ✅ Correct
+  console.log(user.data.name); // Correct
+  console.log(user.data.email); // Correct
 }
 
 // Incorrect way (will not work)
-console.log(user.name); // ❌ Incorrect
-console.log(user.email); // ❌ Incorrect
+console.log(user.name); // Incorrect
+console.log(user.email); // Incorrect
 ```
 
 ```sh
@@ -249,27 +249,58 @@ console.log(createdEntity.data.id); // Auto-generated UUID
 console.log(createdEntity.data.title); // 'New Entity'
 ```
 
-### Read
+### Read (Finding Records)
 
-```typescript
-// Find by ID
-const entity = await Entity.findById('some-uuid', env.DB);
-if (entity) {
-  console.log(entity.data.title);
-}
+Model-One provides several static methods on your model class to retrieve records from the database. All these methods return model instances (or `null` / an array of instances), and you should access their properties via the `.data` object.
 
-// Find by column value
-const entity = await Entity.findOne('title', 'New Entity', env.DB);
-if (entity) {
-  console.log(entity.data.count);
-}
+*   `YourModel.findById(id: string, env: any, includeDeleted?: boolean): Promise<YourModel | null>`
 
-// Get all entities
-const allEntities = await Entity.all(env.DB);
-allEntities.forEach(entity => {
-  console.log(entity.data.title);
-});
-```
+    Finds a single record by its ID. Returns a model instance or `null` if not found.
+
+    ```typescript
+    const user = await User.findById('some-uuid', env.DB);
+    if (user) {
+      console.log(user.data.name); // Access data via .data
+    }
+    ```
+    If `softDeletes` is enabled for the model, you can pass `true` as the third argument (`includeDeleted`) to also find soft-deleted records.
+
+*   `YourModel.findOne(column: string, value: string, env: any, includeDeleted?: boolean): Promise<YourModel | null>`
+
+    Finds the first record that matches a given column-value pair. Returns a model instance or `null`.
+
+    ```typescript
+    const adminUser = await User.findOne('email', 'admin@example.com', env.DB);
+    if (adminUser) {
+      console.log(adminUser.data.id);
+    }
+    ```
+    The optional fourth argument `includeDeleted` works the same as in `findById`.
+
+*   `YourModel.findBy(column: string, value: string, env: any, includeDeleted?: boolean): Promise<YourModel[]>`
+
+    Finds all records that match a given column-value pair. Returns an array of model instances (can be empty).
+
+    ```typescript
+    const activeUsers = await User.findBy('status', 'active', env.DB);
+    activeUsers.forEach(user => {
+      console.log(user.data.email);
+    });
+    ```
+    The optional fourth argument `includeDeleted` works the same as in `findById`.
+
+*   `YourModel.all(env: any, includeDeleted?: boolean): Promise<YourModel[]>`
+
+    Retrieves all records for the model. Returns an array of model instances.
+
+    ```typescript
+    const allUsers = await User.all(env.DB);
+    console.log(`Total users: ${allUsers.length}`);
+    allUsers.forEach(user => {
+      console.log(user.data.name); // Access data via .data
+    });
+    ```
+    The optional second argument `includeDeleted` works the same as in `findById`.
 
 ### Update
 
@@ -290,12 +321,19 @@ console.log(updatedEntity.data.updated_at); // Current timestamp
 ### Delete (Soft Delete)
 
 ```typescript
-// Soft delete an entity
+// Soft delete an entity using the static Model.delete() method (still supported)
 await Entity.delete('entity-uuid', env.DB);
 
-// Entity will no longer be returned in queries
+// Entity will no longer be returned in queries by default
 const notFound = await Entity.findById('entity-uuid', env.DB);
 console.log(notFound); // null
+
+// New: Soft delete an entity using the instance delete() method
+const entityToDelete = await Entity.findById('another-entity-uuid', env.DB);
+if (entityToDelete) {
+  await entityToDelete.delete(env.DB);
+  console.log('Entity soft deleted via instance method.');
+}
 ```
 
 ## Raw SQL Queries
@@ -354,11 +392,11 @@ In v0.2.0, all entity properties must be accessed through the `data` property:
 ```typescript
 // v0.1.x (no longer works)
 const user = await User.findById(id, env.DB);
-console.log(user.name); // ❌ Undefined
+console.log(user.name); // Undefined
 
 // v0.2.0 and above
 const user = await User.findById(id, env.DB);
-console.log(user.data.name); // ✅ Works correctly
+console.log(user.data.name); // Works correctly
 ```
 
 ### Model Initialization
@@ -462,18 +500,16 @@ export class User extends Model implements UserI {
 ```js
 // ./models/User.ts
 import { Model, Schema } from 'model-one'
-import type { SchemaConfigI, Column } from 'model-one';
+import type { SchemaConfigI } from 'model-one';
 import { UserI, UserDataI } from '../interfaces'
 
 const userSchema: SchemaConfigI = new Schema({
   table_name: 'users',
   columns: [
-    { name: 'id', type: 'string', constraints: [{ type: 'PRIMARY KEY' }] },
+    { name: 'id', type: 'string' },
     { name: 'first_name', type: 'string' },
     { name: 'last_name', type: 'string' }
   ],
-  timestamps: true,
-  softDeletes: false
 })
 
 export class User extends Model implements UserI {
@@ -648,6 +684,7 @@ Include the ID and the fields you want to update inside the data object.
 
 ```js
 // ./controllers/UserController.ts
+
 import { User } from '../models/User';
 
 // User.update(data, binding)

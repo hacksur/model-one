@@ -8,7 +8,7 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Test database schema
 export const schema = [
-  `CREATE TABLE users (id text PRIMARY KEY, name text, languages text, deleted_at datetime, created_at datetime, updated_at datetime);`
+  `CREATE TABLE users (id text PRIMARY KEY, name text UNIQUE, languages text, deleted_at datetime, created_at datetime, updated_at datetime);`
 ];
 
 // Define validation schema for the form
@@ -23,7 +23,7 @@ const userSchema: SchemaConfigI = new Schema({
   table_name: 'users',
   columns: [
     { name: 'id', type: 'string' },
-    { name: 'name', type: 'string' },
+    { name: 'name', type: 'string', constraints: [{ type: 'UNIQUE' }] },
     { name: 'languages', type: 'jsonb' },
   ],
   timestamps: true,
@@ -37,6 +37,7 @@ interface UserDataI {
   languages?: string[];
   created_at?: string;
   updated_at?: string;
+  deleted_at?: string;
 }
 
 interface UserI extends Model {
@@ -65,7 +66,6 @@ async function createUser(data: UserDataI, binding: any): Promise<any> {
   const entity = new User(data);
   const form = new UserForm(entity);
   const createdUser = await User.create(form, binding);
-  console.log('createdUser', createdUser);
   return createdUser;
 }
 
@@ -227,4 +227,114 @@ test('Delete a user (soft delete)', async (t) => {
   // Should have exactly one result and deleted_at should be set
   t.is(results.length, 1, 'User should still exist in the database');
   t.truthy(results[0].deleted_at, 'User should have deleted_at timestamp set');
+});
+
+
+// Instance Delete Method Tests
+test('Instance can call delete() successfully (soft delete)', async (t) => {
+  const { db: binding }: any = t.context;
+  const userData = { name: 'DeleteMeInstance' };
+  const userInstance = await createUser(userData, binding) as User;
+
+  t.truthy(userInstance, 'User instance should be created.');
+  t.truthy(userInstance.id, 'User instance should have an ID.');
+  const userId = userInstance.id!;
+
+  // Call instance delete()
+  const deleteResult = await userInstance.delete(binding);
+  t.truthy(deleteResult.message.includes('soft deleted'), 'Instance delete should confirm soft deletion.');
+
+  // Verify the instance data is not nulled out immediately by instance.delete()
+  // The static delete method, which instance.delete() calls, doesn't modify the instance itself
+  t.is(userInstance.data.name, 'DeleteMeInstance', 'Instance data should remain after calling delete.');
+
+  // Try to find the user by ID using static User.findById, it should not be found (due to soft delete)
+  const notFoundUser = await User.findById(userId, binding);
+  t.is(notFoundUser, null, 'User should not be found without includeDeleted flag after soft delete.');
+
+  // Verify soft delete by querying with includeDeleted: true
+  const softDeletedUser = await User.findById(userId, binding, true) as User; 
+  t.truthy(softDeletedUser, 'User should be retrievable when includeDeleted is true.');
+  const softDeletedUser2 = await User.findById(userId, binding, true) as User; 
+  t.truthy(softDeletedUser2, 'User (softDeletedUser2, includeDeleted: true) should be retrievable.'); 
+
+  // Assertions for softDeletedUser - now a model instance
+  t.truthy(softDeletedUser!.data.deleted_at, 'softDeletedUser.data.deleted_at should have a timestamp.');
+  t.is(softDeletedUser!.id, userId, 'softDeletedUser.id should match.');
+  t.is(softDeletedUser!.data.id, userId, 'softDeletedUser.data.id should match.');
+
+  // Assertions for softDeletedUser2 - now also a model instance
+  t.truthy(softDeletedUser2!.data.deleted_at, 'softDeletedUser2.data.deleted_at should have a timestamp.');
+  t.is(softDeletedUser2!.id, userId, 'softDeletedUser2.id should match.');
+  t.is(softDeletedUser2!.data.id, userId, 'softDeletedUser2.data.id should match.');
+});
+
+test('Instance delete() throws error if ID is missing', async (t) => {
+  const { db: binding }: any = t.context;
+  const userInstance = new User({ name: 'NoIDUser' });
+  // Ensure ID is not set
+  userInstance.data.id = undefined;
+  userInstance.id = null;
+
+  try {
+    await userInstance.delete(binding);
+    t.fail('Should have thrown an error because ID is missing.');
+  } catch (error: any) {
+    t.true(error instanceof Error, 'Error should be an instance of Error.'); // Or ModelError if ModelError is exported and used
+    t.is(error.message, 'Instance data is missing an ID, cannot delete.', 'Error message not as expected.');
+  }
+});
+
+test('Instance delete() performs soft delete when schema is configured', async (t) => {
+  const { db: binding }: any = t.context;
+  // User schema in this test file is already configured for softDeletes: true
+  const userData = { name: 'SoftDeleteTestInstance' };
+  const userInstance = await createUser(userData, binding) as User;
+
+  t.truthy(userInstance, 'User instance should be created for soft delete test.');
+  t.truthy(userInstance.id, 'User instance should have an ID.');
+  const userId = userInstance.id!;
+
+  const deleteResult = await userInstance.delete(binding);
+  t.truthy(deleteResult.message.includes('soft deleted'), 'Confirmation message should indicate soft delete.');
+
+  // Attempt to find the user normally - should not be found.
+  const foundNormally = await User.findById(userId, binding);
+  t.is(foundNormally, null, 'User should not be found with default findById after soft delete.');
+
+  // Attempt to find including deleted - should be found.
+  const foundWithSoftDelete = await User.findById(userId, binding, true) as User;
+  t.truthy(foundWithSoftDelete, 'User should be found when including deleted records.');
+  t.truthy(foundWithSoftDelete!.data.deleted_at, 'User data should have a deleted_at timestamp.');
+  t.is(foundWithSoftDelete!.id, userId, 'Found user ID should match original ID.');
+
+  // Also, verify that a direct query for the ID still returns the row, but with deleted_at set
+  const queryResponse = await User.query(`SELECT * FROM users WHERE id = '${userId}'`, binding);
+  t.truthy(queryResponse.success && queryResponse.results && queryResponse.results.length > 0, 'Raw query should find the user.');
+  if (queryResponse.success && queryResponse.results && queryResponse.results.length > 0) {
+    t.truthy(queryResponse.results[0].deleted_at, 'Raw query result should have deleted_at populated.');
+  }
+});
+
+// Unique Constraint and FindOne Tests
+test('Unique constraint on name', async (t) => {
+  const { db: binding }: any = t.context;
+  const uniqueName = 'UniqueName';
+  const user1 = await createUser({ name: uniqueName }, binding);
+  try {
+    await createUser({ name: uniqueName }, binding);
+    t.fail('Should have thrown an error due to unique constraint violation.');
+  } catch (error: any) {
+    t.true(error instanceof Error, 'Error should be an instance of Error.'); // Or ModelError if ModelError is exported and used
+    t.is(error.message, 'D1_ERROR: UNIQUE constraint failed: users.name: SQLITE_CONSTRAINT', 'Error message not as expected.');
+  }
+});
+
+test('Find one user by name', async (t) => {
+  const { db: binding }: any = t.context;
+  const name = 'FindOneUser';
+  const user = await createUser({ name }, binding);
+  const foundUser = await User.findOne('name', name, binding);
+  t.truthy(foundUser, 'User should be found.');
+  t.is(foundUser!.data.name, name, 'Found user name should match.');
 });

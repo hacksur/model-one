@@ -1,7 +1,7 @@
 {
   "name": "model-one",
   "description": "Model for D1",
-  "version": "0.3.0",
+  "version": "0.3.0-cd70487a4862",
   "main": "./lib/index.js",
   "typings": "./lib/index.d.ts",
   "repository": {
@@ -14,6 +14,7 @@
   ],
   "license": "MIT",
   "scripts": {
+    "checkpoint": "node ./scripts/checkpoint.cjs",
     "watch-build": "tsc -w",
     "watch-test": "ava --watch",
     "dev": "concurrently 'npm:watch-*'",

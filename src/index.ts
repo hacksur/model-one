@@ -162,6 +162,24 @@ class Model {
   }
 
   /**
+   * Deletes the current model instance from the database.
+   * @param env - The database environment/connection object
+   * @returns The result of the delete operation
+   * @throws {ModelError} If the instance is missing an ID
+   */
+  async delete(env: any): Promise<any> {
+    if (!this.data?.id) {
+      throw new ModelError('Instance data is missing an ID, cannot delete.');
+    }
+
+    const ModelCtor = this.constructor as typeof Model;
+    const result = await ModelCtor.delete(this.data.id, env);
+    
+    // Return the result from the static delete method
+    return result;
+  }
+
+  /**
    * Maps JavaScript types to SQLite types
    */
   private static getDefaultSQLiteType(columnType: ColumnType): SQLiteType {
@@ -458,7 +476,7 @@ class Model {
     }
   }
 
-  static async findOne(column: string, value: string, env: any, complete?: Boolean, includeDeleted?: Boolean) {
+  static async findOne(column: string, value: string, env: any, includeDeleted?: Boolean) {
     const { schema } = new this();
     
     let query = `SELECT * FROM ${schema.table_name} WHERE ${column}='${value}'`;
@@ -475,16 +493,12 @@ class Model {
         return null;
     }
     
-    if (complete) { 
-      return results[0]; 
-    } else {
-      const dbRecord = { ...results[0] }; 
-      const serializedData = this.serializeData(dbRecord, schema);
-      return this.createModelInstance(serializedData, schema); 
-    }
+    const dbRecord = { ...results[0] }; 
+    const serializedData = this.serializeData(dbRecord, schema);
+    return this.createModelInstance(serializedData, schema); 
   }
 
-  static async findBy(column: string, value: string, env: any, complete?: Boolean, includeDeleted?: Boolean) {
+  static async findBy(column: string, value: string, env: any, includeDeleted?: Boolean) {
     const { schema } = new this();
     
     let query = `SELECT * FROM ${schema.table_name} WHERE ${column}='${value}'`;
@@ -500,17 +514,13 @@ class Model {
     if (!success || !results) return [];
 
     return results.map((result: any) => {
-      if (complete) { 
-        return result;
-      } else {
-        const dbRecord = { ...result }; 
-        const serializedData = this.serializeData(dbRecord, schema);
-        return this.createModelInstance(serializedData, schema); 
-      }
+      const dbRecord = { ...result }; 
+      const serializedData = this.serializeData(dbRecord, schema);
+      return this.createModelInstance(serializedData, schema); 
     }).filter((p:any) => p !== null); 
   }
 
-  static async findById(id: string, env: any, complete?: Boolean, includeDeleted?: Boolean) {
+  static async findById(id: string, env: any, includeDeleted?: Boolean) {
     const { schema } = new this(); 
     
     let query = `SELECT * FROM ${schema.table_name} WHERE id='${id}'`;
@@ -527,13 +537,9 @@ class Model {
         return null;
     }
     
-    if (complete) { 
-      return results[0];
-    } else {
-      const dbRecord = { ...results[0] }; 
-      const serializedData = this.serializeData(dbRecord, schema);
-      return this.createModelInstance(serializedData, schema); 
-    }
+    const dbRecord = { ...results[0] }; 
+    const serializedData = this.serializeData(dbRecord, schema);
+    return this.createModelInstance(serializedData, schema); 
   }
 
   static async query(sql: string, env: any, params?: any[]) {

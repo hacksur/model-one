@@ -75,6 +75,13 @@ declare class Model {
     constructor(schema?: SchemaConfigI, props?: ModelDataI);
     update(partialData: Partial<ModelDataI>, env: any): Promise<this | null>;
     /**
+     * Deletes the current model instance from the database.
+     * @param env - The database environment/connection object
+     * @returns The result of the delete operation
+     * @throws {ModelError} If the instance is missing an ID
+     */
+    delete(env: any): Promise<any>;
+    /**
      * Maps JavaScript types to SQLite types
      */
     private static getDefaultSQLiteType;
@@ -102,9 +109,9 @@ declare class Model {
         data: any;
     }>;
     static all(env: any, includeDeleted?: Boolean): Promise<any>;
-    static findOne(column: string, value: string, env: any, complete?: Boolean, includeDeleted?: Boolean): Promise<any>;
-    static findBy(column: string, value: string, env: any, complete?: Boolean, includeDeleted?: Boolean): Promise<any>;
-    static findById(id: string, env: any, complete?: Boolean, includeDeleted?: Boolean): Promise<any>;
+    static findOne(column: string, value: string, env: any, includeDeleted?: Boolean): Promise<any>;
+    static findBy(column: string, value: string, env: any, includeDeleted?: Boolean): Promise<any>;
+    static findById(id: string, env: any, includeDeleted?: Boolean): Promise<any>;
     static query(sql: string, env: any, params?: any[]): Promise<{
         success: boolean;
         message: string;
